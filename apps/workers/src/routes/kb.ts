@@ -1,53 +1,133 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../lib/env.js";
+import type { KBStatus } from "@kb-chatbot/shared";
+import {
+  listKBItems,
+  getKBItem,
+  createKBItem,
+  updateKBItem,
+  publishKBItem,
+  archiveKBItem,
+} from "@kb-chatbot/kb-engine";
 
 const kb = new Hono<AppEnv>();
 
-/**
- * 지식 베이스 CRUD API
- * Phase 4에서 전체 구현
- */
-
-// GET /api/kb - KB 목록
+// GET /api/kb — KB 목록 (페이지네이션, 필터)
 kb.get("/", async (c) => {
-  // TODO: Phase 4
-  return c.json({ data: [], total: 0, page: 1, limit: 20, totalPages: 0 });
+  const db = c.get("db");
+  const page = Number(c.req.query("page") || "1");
+  const limit = Number(c.req.query("limit") || "20");
+  const status = c.req.query("status") as KBStatus | undefined;
+  const category = c.req.query("category");
+  const search = c.req.query("search");
+
+  const result = await listKBItems(db, {
+    page,
+    limit,
+    status,
+    category: category || undefined,
+    search: search || undefined,
+  });
+
+  return c.json(result);
 });
 
-// GET /api/kb/:id - KB 상세
+// GET /api/kb/:id — KB 상세
 kb.get("/:id", async (c) => {
-  // TODO: Phase 4
-  return c.json({ error: "Not implemented" }, 501);
+  const db = c.get("db");
+  const item = await getKBItem(db, c.req.param("id"));
+
+  if (!item) {
+    return c.json({ error: "Knowledge item not found" }, 404);
+  }
+
+  return c.json(item);
 });
 
-// POST /api/kb - KB 생성
+// POST /api/kb — KB 생성
 kb.post("/", async (c) => {
-  // TODO: Phase 4
-  return c.json({ error: "Not implemented" }, 501);
+  const db = c.get("db");
+  const body = await c.req.json<{
+    question: string;
+    answer: string;
+    category?: string;
+    tags?: string[];
+  }>();
+
+  if (!body.question?.trim() || !body.answer?.trim()) {
+    return c.json({ error: "question and answer are required" }, 400);
+  }
+
+  const item = await createKBItem(
+    db,
+    {
+      question: body.question.trim(),
+      answer: body.answer.trim(),
+      category: body.category,
+      tags: body.tags,
+      createdBy: c.get("userEmail") ?? "operator",
+    },
+    c.env.OPENAI_API_KEY,
+  );
+
+  return c.json(item, 201);
 });
 
-// PUT /api/kb/:id - KB 수정
+// PUT /api/kb/:id — KB 수정
 kb.put("/:id", async (c) => {
-  // TODO: Phase 4
-  return c.json({ error: "Not implemented" }, 501);
+  const db = c.get("db");
+  const id = c.req.param("id");
+  const body = await c.req.json<{
+    question?: string;
+    answer?: string;
+    category?: string;
+    tags?: string[];
+  }>();
+
+  const item = await updateKBItem(db, id, body, c.env.OPENAI_API_KEY);
+
+  if (!item) {
+    return c.json({ error: "Knowledge item not found" }, 404);
+  }
+
+  return c.json(item);
 });
 
-// DELETE /api/kb/:id - KB 삭제 (soft delete)
+// DELETE /api/kb/:id — KB 삭제 (soft delete → archived)
 kb.delete("/:id", async (c) => {
-  // TODO: Phase 4
-  return c.json({ error: "Not implemented" }, 501);
+  const db = c.get("db");
+  const item = await archiveKBItem(db, c.req.param("id"));
+
+  if (!item) {
+    return c.json({ error: "Knowledge item not found" }, 404);
+  }
+
+  return c.json({ success: true });
 });
 
-// POST /api/kb/:id/publish - 발행
+// POST /api/kb/:id/publish — draft → published
 kb.post("/:id/publish", async (c) => {
-  // TODO: Phase 4
-  return c.json({ error: "Not implemented" }, 501);
+  const db = c.get("db");
+  const confirmedBy = c.get("userEmail") ?? "operator";
+  const item = await publishKBItem(db, c.req.param("id"), confirmedBy);
+
+  if (!item) {
+    return c.json({ error: "Knowledge item not found" }, 404);
+  }
+
+  return c.json(item);
 });
 
-// POST /api/kb/:id/archive - 아카이브
+// POST /api/kb/:id/archive — → archived
 kb.post("/:id/archive", async (c) => {
-  // TODO: Phase 4
-  return c.json({ error: "Not implemented" }, 501);
+  const db = c.get("db");
+  const item = await archiveKBItem(db, c.req.param("id"));
+
+  if (!item) {
+    return c.json({ error: "Knowledge item not found" }, 404);
+  }
+
+  return c.json(item);
 });
 
 export { kb };
