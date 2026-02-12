@@ -1,0 +1,9 @@
+name = "kb-chatbot-api"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+
+[observability]
+enabled = true
+
+# [triggers]
+# crons = ["0 * * * *"]  # 매시간 수집 (Phase 6에서 활성화)
