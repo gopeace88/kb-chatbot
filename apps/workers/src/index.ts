@@ -1,13 +1,14 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
-import type { Env } from "./lib/env.js";
+import type { AppEnv } from "./lib/env.js";
+import { dbMiddleware } from "./middleware/db.js";
 import { kakao } from "./routes/kakao.js";
 import { kb } from "./routes/kb.js";
 import { inquiry } from "./routes/inquiry.js";
 import { collector } from "./routes/collector.js";
 
-const app = new Hono<{ Bindings: Env }>();
+const app = new Hono<AppEnv>();
 
 // 글로벌 미들웨어
 app.use("*", logger());
@@ -19,6 +20,9 @@ app.use(
     allowHeaders: ["Content-Type", "Authorization", "Cf-Access-Jwt-Assertion"],
   }),
 );
+
+// DB 미들웨어 — 모든 라우트에 적용
+app.use("*", dbMiddleware);
 
 // 헬스체크
 app.get("/health", (c) => {

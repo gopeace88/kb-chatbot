@@ -1,7 +1,7 @@
 import { Hono } from "hono";
-import type { Env } from "../lib/env.js";
+import type { AppEnv } from "../lib/env.js";
 
-const inquiry = new Hono<{ Bindings: Env }>();
+const inquiry = new Hono<AppEnv>();
 
 /**
  * 문의 관리 API

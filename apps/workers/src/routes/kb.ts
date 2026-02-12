@@ -1,7 +1,7 @@
 import { Hono } from "hono";
-import type { Env } from "../lib/env.js";
+import type { AppEnv } from "../lib/env.js";
 
-const kb = new Hono<{ Bindings: Env }>();
+const kb = new Hono<AppEnv>();
 
 /**
  * 지식 베이스 CRUD API

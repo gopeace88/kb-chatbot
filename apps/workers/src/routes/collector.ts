@@ -1,7 +1,7 @@
 import { Hono } from "hono";
-import type { Env } from "../lib/env.js";
+import type { AppEnv } from "../lib/env.js";
 
-const collector = new Hono<{ Bindings: Env }>();
+const collector = new Hono<AppEnv>();
 
 /**
  * 마켓플레이스 수집 API
