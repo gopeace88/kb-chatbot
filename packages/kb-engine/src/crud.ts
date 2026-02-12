@@ -466,6 +466,23 @@ export async function listConversations(
   };
 }
 
+/**
+ * 특정 카카오 사용자의 가장 최근 대화 조회
+ */
+export async function getLatestConversation(
+  db: Database,
+  kakaoUserId: string,
+) {
+  const [conv] = await db
+    .select()
+    .from(conversations)
+    .where(eq(conversations.kakaoUserId, kakaoUserId))
+    .orderBy(desc(conversations.createdAt))
+    .limit(1);
+
+  return conv ?? null;
+}
+
 export async function updateConversationFeedback(
   db: Database,
   conversationId: string,

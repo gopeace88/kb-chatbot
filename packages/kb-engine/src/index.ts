@@ -32,6 +32,7 @@ export {
   // Conversations
   createConversation,
   listConversations,
+  getLatestConversation,
   updateConversationFeedback,
   type CreateConversationInput,
 } from "./crud.js";
