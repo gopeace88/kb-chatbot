@@ -7,6 +7,7 @@ export interface SearchResult {
   question: string;
   answer: string;
   category: string | null;
+  imageUrl: string | null;
   similarity: number;
 }
 
@@ -35,6 +36,7 @@ export async function searchKnowledgeBase(
       question: knowledgeItems.question,
       answer: knowledgeItems.answer,
       category: knowledgeItems.category,
+      imageUrl: knowledgeItems.imageUrl,
       similarity: sql<number>`1 - (question_embedding <=> ${embeddingStr}::vector)`,
     })
     .from(knowledgeItems)

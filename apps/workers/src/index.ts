@@ -11,6 +11,7 @@ import { conversationsRoute } from "./routes/conversations.js";
 import { stats } from "./routes/stats.js";
 import { collector } from "./routes/collector.js";
 import { cafe24OAuth } from "./routes/cafe24-oauth.js";
+import { customers } from "./routes/customers.js";
 import { runScheduledSync } from "./lib/scheduled.js";
 
 const app = new Hono<AppEnv>();
@@ -20,7 +21,17 @@ app.use("*", logger());
 app.use(
   "/api/*",
   cors({
-    origin: ["http://localhost:3000"],
+    origin: (origin) => {
+      const allowed = [
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "https://kb-chatbot.pages.dev",
+      ];
+      if (allowed.includes(origin)) return origin;
+      // CF Pages preview deployments
+      if (origin.endsWith(".kb-chatbot.pages.dev")) return origin;
+      return null;
+    },
     allowMethods: ["GET", "POST", "PUT", "DELETE"],
     allowHeaders: [
       "Content-Type",
@@ -50,6 +61,7 @@ app.route("/api/conversations", conversationsRoute);
 app.route("/api/stats", stats);
 app.route("/api/collector", collector);
 app.route("/api/cafe24/oauth", cafe24OAuth);
+app.route("/api/customers", customers);
 
 // 404
 app.notFound((c) => {

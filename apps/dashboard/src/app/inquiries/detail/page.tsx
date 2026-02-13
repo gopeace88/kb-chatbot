@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,11 +15,21 @@ const channelLabel: Record<string, string> = {
   kakao: "카카오톡",
   coupang: "쿠팡",
   naver: "네이버",
+  cafe24: "카페24",
   manual: "수동",
 };
 
 export default function InquiryDetailPage() {
-  const { id } = useParams<{ id: string }>();
+  return (
+    <Suspense>
+      <InquiryDetailContent />
+    </Suspense>
+  );
+}
+
+function InquiryDetailContent() {
+  const searchParams = useSearchParams();
+  const id = searchParams.get("id") || "";
   const router = useRouter();
   const [item, setItem] = useState<Inquiry | null>(null);
   const [answerText, setAnswerText] = useState("");
@@ -27,6 +37,7 @@ export default function InquiryDetailPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
+    if (!id) { router.push("/inquiries"); return; }
     api.getInquiry(id).then((data) => {
       setItem(data);
       setAnswerText(data.answerText || "");
@@ -183,7 +194,7 @@ export default function InquiryDetailPage() {
                 </Button>
               )}
               {item.knowledgeItemId && (
-                <Link href={`/kb/${item.knowledgeItemId}`}>
+                <Link href={`/kb/detail?id=${item.knowledgeItemId}`}>
                   <Button variant="outline" className="w-full">
                     연결된 KB 보기
                   </Button>

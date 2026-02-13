@@ -1,6 +1,10 @@
-const OPENAI_BASE_URL =
+const DEFAULT_OPENAI_BASE_URL =
   "https://gateway.ai.cloudflare.com/v1/28b9de8f436a1a7b49eeb39d61b1fefd/kb-chatbot/openai";
 const EMBEDDING_MODEL = "text-embedding-3-small";
+
+export interface EmbeddingOptions {
+  baseUrl?: string;
+}
 
 interface EmbeddingResponse {
   data: Array<{ index: number; embedding: number[] }>;
@@ -12,8 +16,10 @@ interface EmbeddingResponse {
 export async function generateEmbedding(
   text: string,
   apiKey: string,
+  options?: EmbeddingOptions,
 ): Promise<number[]> {
-  const response = await fetch(OPENAI_BASE_URL + "/embeddings", {
+  const baseUrl = options?.baseUrl ?? DEFAULT_OPENAI_BASE_URL;
+  const response = await fetch(baseUrl + "/embeddings", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -41,11 +47,13 @@ export async function generateEmbedding(
 export async function generateEmbeddings(
   texts: string[],
   apiKey: string,
+  options?: EmbeddingOptions,
 ): Promise<number[][]> {
   if (texts.length === 0) return [];
-  if (texts.length === 1) return [await generateEmbedding(texts[0], apiKey)];
+  if (texts.length === 1) return [await generateEmbedding(texts[0], apiKey, options)];
 
-  const response = await fetch(OPENAI_BASE_URL + "/embeddings", {
+  const baseUrl = options?.baseUrl ?? DEFAULT_OPENAI_BASE_URL;
+  const response = await fetch(baseUrl + "/embeddings", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,

@@ -1,19 +1,31 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8787";
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_URL ||
+  (typeof window !== "undefined" && window.location.hostname !== "localhost"
+    ? "https://kb-chatbot-api.gopeace88.workers.dev"
+    : "http://localhost:8787");
+
+const isDev =
+  typeof window !== "undefined" && window.location.hostname === "localhost";
 
 export async function apiClient<T>(
   path: string,
   options?: RequestInit,
 ): Promise<T> {
   const url = `${API_BASE}${path}`;
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...((options?.headers as Record<string, string>) ?? {}),
+  };
+
+  // 개발 모드에서만 CF Access 바이패스 헤더 전송
+  if (isDev) {
+    headers["Cf-Access-Jwt-Assertion"] = "dev";
+    headers["cf-access-authenticated-user-email"] = "dev@localhost";
+  }
+
   const response = await fetch(url, {
     ...options,
-    headers: {
-      "Content-Type": "application/json",
-      // 개발 모드에서는 CF Access 바이패스
-      "Cf-Access-Jwt-Assertion": "dev",
-      "cf-access-authenticated-user-email": "dev@localhost",
-      ...options?.headers,
-    },
+    headers,
   });
 
   if (!response.ok) {
@@ -50,6 +62,7 @@ export interface KBItem {
   confirmedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  imageUrl: string | null;
 }
 
 export interface Inquiry {
@@ -102,6 +115,31 @@ export interface SyncResult {
   errors: string[];
 }
 
+export interface CustomerLink {
+  id: string;
+  kakaoUserId: string;
+  phoneNumber: string | null;
+  cafe24CustomerId: string | null;
+  cafe24MemberId: string | null;
+  linkedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CustomerStats {
+  totalCustomers: number;
+  linkedCustomers: number;
+  todayNew: number;
+}
+
+export interface RAGStats {
+  sourceDist: Array<{ source: string; count: number; pct: number }>;
+  dailyConversations: Array<{ date: string; count: number }>;
+  avgSimilarity: number;
+  feedbackStats: { helpful: number; notHelpful: number; noFeedback: number };
+  categoryUsage: Array<{ category: string; count: number }>;
+}
+
 export interface SyncLog {
   id: string;
   platform: string;
@@ -130,9 +168,9 @@ export const api = {
     return apiClient<PaginatedResponse<KBItem>>(`/api/kb?${qs}`);
   },
   getKB: (id: string) => apiClient<KBItem>(`/api/kb/${id}`),
-  createKB: (data: { question: string; answer: string; category?: string; tags?: string[] }) =>
+  createKB: (data: { question: string; answer: string; category?: string; tags?: string[]; imageUrl?: string }) =>
     apiClient<KBItem>("/api/kb", { method: "POST", body: JSON.stringify(data) }),
-  updateKB: (id: string, data: { question?: string; answer?: string; category?: string; tags?: string[] }) =>
+  updateKB: (id: string, data: { question?: string; answer?: string; category?: string; tags?: string[]; imageUrl?: string | null }) =>
     apiClient<KBItem>(`/api/kb/${id}`, { method: "PUT", body: JSON.stringify(data) }),
   deleteKB: (id: string) =>
     apiClient<{ success: boolean }>(`/api/kb/${id}`, { method: "DELETE" }),
@@ -188,4 +226,15 @@ export const api = {
     }),
   getCollectorLogs: (limit?: number) =>
     apiClient<{ data: SyncLog[] }>(`/api/collector/logs?limit=${limit || 50}`),
+
+  // Customers
+  listCustomers: (params?: { page?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.page) qs.set("page", String(params.page));
+    return apiClient<PaginatedResponse<CustomerLink>>(`/api/customers?${qs}`);
+  },
+  getCustomerStats: () => apiClient<CustomerStats>("/api/customers/stats"),
+
+  // RAG Stats
+  getRAGStats: () => apiClient<RAGStats>("/api/stats/rag"),
 };

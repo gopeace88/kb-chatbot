@@ -27,6 +27,9 @@ export const knowledgeItems = pgTable(
     tags: text("tags").array(),
     sourceInquiryId: uuid("source_inquiry_id"),
 
+    // 이미지
+    imageUrl: varchar("image_url", { length: 1024 }),
+
     // 상태
     status: kbStatusEnum("status").notNull().default("draft"),
 

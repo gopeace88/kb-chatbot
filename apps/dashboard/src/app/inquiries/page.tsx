@@ -99,7 +99,7 @@ function InquiriesContent() {
                 <tr
                   key={item.id}
                   className="cursor-pointer border-b border-border last:border-0 hover:bg-muted/50"
-                  onClick={() => router.push(`/inquiries/${item.id}`)}
+                  onClick={() => router.push(`/inquiries/detail?id=${item.id}`)}
                 >
                   <td className="px-4 py-3">
                     <div className="font-medium text-gray-900">

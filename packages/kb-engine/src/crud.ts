@@ -22,6 +22,7 @@ export interface CreateKBItemInput {
   tags?: string[];
   sourceInquiryId?: string;
   createdBy?: string;
+  imageUrl?: string;
 }
 
 export interface UpdateKBItemInput {
@@ -29,14 +30,16 @@ export interface UpdateKBItemInput {
   answer?: string;
   category?: string;
   tags?: string[];
+  imageUrl?: string | null;
 }
 
 export async function createKBItem(
   db: Database,
   input: CreateKBItemInput,
   openaiApiKey: string,
+  embeddingOptions?: { baseUrl?: string },
 ) {
-  const embedding = await generateEmbedding(input.question, openaiApiKey);
+  const embedding = await generateEmbedding(input.question, openaiApiKey, embeddingOptions);
 
   const [item] = await db
     .insert(knowledgeItems)
@@ -48,6 +51,7 @@ export async function createKBItem(
       tags: input.tags ?? null,
       sourceInquiryId: input.sourceInquiryId ?? null,
       createdBy: input.createdBy ?? null,
+      imageUrl: input.imageUrl ?? null,
       status: "draft",
     })
     .returning();
@@ -60,11 +64,12 @@ export async function updateKBItem(
   id: string,
   input: UpdateKBItemInput,
   openaiApiKey: string,
+  embeddingOptions?: { baseUrl?: string },
 ) {
   // 질문이 변경되면 임베딩 재생성
   let embedding: number[] | undefined;
   if (input.question) {
-    embedding = await generateEmbedding(input.question, openaiApiKey);
+    embedding = await generateEmbedding(input.question, openaiApiKey, embeddingOptions);
   }
 
   const [item] = await db
@@ -74,6 +79,7 @@ export async function updateKBItem(
       ...(input.answer && { answer: input.answer }),
       ...(input.category !== undefined && { category: input.category }),
       ...(input.tags !== undefined && { tags: input.tags }),
+      ...(input.imageUrl !== undefined && { imageUrl: input.imageUrl }),
       ...(embedding && { questionEmbedding: embedding }),
       updatedAt: new Date(),
     })
@@ -133,6 +139,7 @@ export async function listKBItems(db: Database, filter: ListKBItemsFilter) {
         helpfulCount: knowledgeItems.helpfulCount,
         createdBy: knowledgeItems.createdBy,
         confirmedBy: knowledgeItems.confirmedBy,
+        imageUrl: knowledgeItems.imageUrl,
         confirmedAt: knowledgeItems.confirmedAt,
         createdAt: knowledgeItems.createdAt,
         updatedAt: knowledgeItems.updatedAt,

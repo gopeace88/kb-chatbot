@@ -4,7 +4,7 @@
  * 카카오톡 사용자 ↔ 전화번호 ↔ Cafe24 고객 매핑
  */
 
-import { eq } from "drizzle-orm";
+import { eq, sql, count, gte, isNotNull } from "drizzle-orm";
 import { customerLinks, type Database } from "@kb-chatbot/database";
 
 export interface CustomerLink {
@@ -29,6 +29,69 @@ export async function getCustomerLink(
     .limit(1);
 
   return row ?? null;
+}
+
+export interface ListCustomerLinksFilter {
+  page?: number;
+  limit?: number;
+}
+
+export async function listCustomerLinks(
+  db: Database,
+  filter: ListCustomerLinksFilter = {},
+) {
+  const page = filter.page || 1;
+  const limit = filter.limit || 20;
+  const offset = (page - 1) * limit;
+
+  const [data, [{ total }]] = await Promise.all([
+    db
+      .select()
+      .from(customerLinks)
+      .orderBy(sql`${customerLinks.createdAt} DESC`)
+      .limit(limit)
+      .offset(offset),
+    db.select({ total: count() }).from(customerLinks),
+  ]);
+
+  return {
+    data,
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+  };
+}
+
+export interface CustomerStats {
+  totalCustomers: number;
+  linkedCustomers: number;
+  todayNew: number;
+}
+
+export async function getCustomerStats(
+  db: Database,
+): Promise<CustomerStats> {
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  const [
+    [{ totalCustomers }],
+    [{ linkedCustomers }],
+    [{ todayNew }],
+  ] = await Promise.all([
+    db.select({ totalCustomers: count() }).from(customerLinks),
+    db
+      .select({ linkedCustomers: count() })
+      .from(customerLinks)
+      .where(isNotNull(customerLinks.cafe24CustomerId)),
+    db
+      .select({ todayNew: count() })
+      .from(customerLinks)
+      .where(gte(customerLinks.createdAt, todayStart)),
+  ]);
+
+  return { totalCustomers, linkedCustomers, todayNew };
 }
 
 export async function upsertCustomerLink(

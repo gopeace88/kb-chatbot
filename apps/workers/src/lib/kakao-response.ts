@@ -37,11 +37,36 @@ function feedbackQuickReplies(): KakaoQuickReply[] {
 /**
  * KB 매칭 또는 AI 생성 답변 응답
  */
-export function buildAnswerResponse(answerText: string): KakaoSkillResponse {
+export function buildAnswerResponse(
+  answerText: string,
+  imageUrl?: string | null,
+): KakaoSkillResponse {
+  const outputs: KakaoOutput[] = [];
+
+  if (imageUrl) {
+    // basicCard with image thumbnail + truncated description
+    const description =
+      answerText.length > KAKAO_LIMITS.BASIC_CARD_MAX_LENGTH
+        ? answerText.slice(0, KAKAO_LIMITS.BASIC_CARD_MAX_LENGTH - 3) + "..."
+        : answerText;
+    outputs.push({
+      basicCard: {
+        thumbnail: { imageUrl },
+        description,
+      },
+    });
+    // Full answer as simpleText if it was truncated
+    if (answerText.length > KAKAO_LIMITS.BASIC_CARD_MAX_LENGTH) {
+      outputs.push(simpleText(answerText));
+    }
+  } else {
+    outputs.push(simpleText(answerText));
+  }
+
   return {
     version: "2.0",
     template: {
-      outputs: [simpleText(answerText)],
+      outputs,
       quickReplies: feedbackQuickReplies(),
     },
   };

@@ -52,4 +52,6 @@ export const KAKAO_LIMITS = {
   SKILL_TIMEOUT_MS: 4500,
   /** SimpleText 최대 길이 */
   SIMPLE_TEXT_MAX_LENGTH: 1000,
+  /** BasicCard description 최대 길이 */
+  BASIC_CARD_MAX_LENGTH: 230,
 } as const;

@@ -10,6 +10,7 @@ export interface AnswerPipelineResult {
   source: ResponseSource;
   matchedKbId: string | null;
   similarityScore: number | null;
+  imageUrl: string | null;
   kbResults: SearchResult[];
 }
 
@@ -54,6 +55,7 @@ export async function answerPipeline(
         source: "kb_match",
         matchedKbId: kbResults[0].id,
         similarityScore: kbResults[0].similarity,
+        imageUrl: kbResults[0].imageUrl,
         kbResults,
       };
     }
@@ -71,6 +73,7 @@ export async function answerPipeline(
         matchedKbId: null,
         similarityScore:
           kbResults.length > 0 ? kbResults[0].similarity : null,
+        imageUrl: null,
         kbResults,
       };
     }
@@ -83,6 +86,7 @@ export async function answerPipeline(
       source: "fallback",
       matchedKbId: null,
       similarityScore: null,
+      imageUrl: null,
       kbResults: [],
     };
   } finally {

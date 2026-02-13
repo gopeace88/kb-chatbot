@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { api, type KBItem } from "@/lib/api";
@@ -20,22 +21,34 @@ const statusBadge = {
 };
 
 export default function KBDetailPage() {
-  const { id } = useParams<{ id: string }>();
+  return (
+    <Suspense>
+      <KBDetailContent />
+    </Suspense>
+  );
+}
+
+function KBDetailContent() {
+  const searchParams = useSearchParams();
+  const id = searchParams.get("id") || "";
   const router = useRouter();
   const [item, setItem] = useState<KBItem | null>(null);
   const [editing, setEditing] = useState(false);
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
   const [category, setCategory] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
+    if (!id) { router.push("/kb"); return; }
     api.getKB(id).then((data) => {
       setItem(data);
       setQuestion(data.question);
       setAnswer(data.answer);
       setCategory(data.category || "");
+      setImageUrl(data.imageUrl || "");
     }).catch(() => router.push("/kb"));
   }, [id, router]);
 
@@ -47,6 +60,7 @@ export default function KBDetailPage() {
         question,
         answer,
         category: category || undefined,
+        imageUrl: imageUrl || null,
       });
       setItem(updated);
       setEditing(false);
@@ -138,11 +152,22 @@ export default function KBDetailPage() {
                     {categories.map((c) => (<option key={c} value={c}>{c}</option>))}
                   </Select>
                 </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">이미지 URL</label>
+                  <Input
+                    value={imageUrl}
+                    onChange={(e) => setImageUrl(e.target.value)}
+                    placeholder="https://example.com/product.jpg"
+                  />
+                  {imageUrl && (
+                    <img src={imageUrl} alt="미리보기" className="mt-2 max-h-40 rounded border" />
+                  )}
+                </div>
                 <div className="flex gap-2">
                   <Button onClick={handleSave} disabled={loading}>
                     {loading ? "저장 중..." : "저장"}
                   </Button>
-                  <Button variant="outline" onClick={() => { setEditing(false); setQuestion(item.question); setAnswer(item.answer); setCategory(item.category || ""); }}>
+                  <Button variant="outline" onClick={() => { setEditing(false); setQuestion(item.question); setAnswer(item.answer); setCategory(item.category || ""); setImageUrl(item.imageUrl || ""); }}>
                     취소
                   </Button>
                 </div>
@@ -157,6 +182,12 @@ export default function KBDetailPage() {
                   <div className="text-sm font-medium text-muted-foreground">답변</div>
                   <p className="mt-1 whitespace-pre-wrap text-gray-900">{item.answer}</p>
                 </div>
+                {item.imageUrl && (
+                  <div>
+                    <div className="text-sm font-medium text-muted-foreground">이미지</div>
+                    <img src={item.imageUrl} alt="KB 이미지" className="mt-1 max-h-48 rounded border" />
+                  </div>
+                )}
               </>
             )}
           </CardContent>

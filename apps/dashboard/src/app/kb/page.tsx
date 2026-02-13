@@ -107,14 +107,21 @@ function KBListContent() {
                 <tr
                   key={item.id}
                   className="cursor-pointer border-b border-border last:border-0 hover:bg-muted/50"
-                  onClick={() => router.push(`/kb/${item.id}`)}
+                  onClick={() => router.push(`/kb/detail?id=${item.id}`)}
                 >
                   <td className="px-4 py-3">
-                    <div className="font-medium text-gray-900">
-                      {truncate(item.question, 60)}
-                    </div>
-                    <div className="mt-0.5 text-xs text-muted-foreground">
-                      {truncate(item.answer, 80)}
+                    <div className="flex items-center gap-2">
+                      {item.imageUrl && (
+                        <img src={item.imageUrl} alt="" className="h-8 w-8 flex-shrink-0 rounded object-cover" />
+                      )}
+                      <div>
+                        <div className="font-medium text-gray-900">
+                          {truncate(item.question, 60)}
+                        </div>
+                        <div className="mt-0.5 text-xs text-muted-foreground">
+                          {truncate(item.answer, 80)}
+                        </div>
+                      </div>
                     </div>
                   </td>
                   <td className="hidden px-4 py-3 md:table-cell">

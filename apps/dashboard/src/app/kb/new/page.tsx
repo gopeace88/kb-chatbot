@@ -18,6 +18,7 @@ export default function NewKBPage() {
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
   const [category, setCategory] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -31,8 +32,9 @@ export default function NewKBPage() {
         question,
         answer,
         category: category || undefined,
+        imageUrl: imageUrl || undefined,
       });
-      router.push(`/kb/${item.id}`);
+      router.push(`/kb/detail?id=${item.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "생성 실패");
     } finally {
@@ -82,6 +84,17 @@ export default function NewKBPage() {
                   <option key={c} value={c}>{c}</option>
                 ))}
               </Select>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium">이미지 URL (선택)</label>
+              <Input
+                value={imageUrl}
+                onChange={(e) => setImageUrl(e.target.value)}
+                placeholder="https://example.com/product.jpg"
+              />
+              {imageUrl && (
+                <img src={imageUrl} alt="미리보기" className="mt-2 max-h-40 rounded border" />
+              )}
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
             <div className="flex gap-2">

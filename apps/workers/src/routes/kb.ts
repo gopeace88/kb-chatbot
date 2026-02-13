@@ -52,10 +52,15 @@ kb.post("/", async (c) => {
     answer: string;
     category?: string;
     tags?: string[];
+    imageUrl?: string;
   }>();
 
   if (!body.question?.trim() || !body.answer?.trim()) {
     return c.json({ error: "question and answer are required" }, 400);
+  }
+
+  if (body.imageUrl && !/^https?:\/\//.test(body.imageUrl)) {
+    return c.json({ error: "imageUrl must be a valid HTTP(S) URL" }, 400);
   }
 
   const item = await createKBItem(
@@ -65,6 +70,7 @@ kb.post("/", async (c) => {
       answer: body.answer.trim(),
       category: body.category,
       tags: body.tags,
+      imageUrl: body.imageUrl,
       createdBy: c.get("userEmail") ?? "operator",
     },
     c.env.OPENAI_API_KEY,
@@ -82,7 +88,12 @@ kb.put("/:id", async (c) => {
     answer?: string;
     category?: string;
     tags?: string[];
+    imageUrl?: string | null;
   }>();
+
+  if (body.imageUrl && !/^https?:\/\//.test(body.imageUrl)) {
+    return c.json({ error: "imageUrl must be a valid HTTP(S) URL" }, 400);
+  }
 
   const item = await updateKBItem(db, id, body, c.env.OPENAI_API_KEY);
 

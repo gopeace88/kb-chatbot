@@ -8,6 +8,7 @@ import {
   BookOpen,
   MessageSquare,
   MessagesSquare,
+  Users,
   Settings,
 } from "lucide-react";
 
@@ -16,6 +17,7 @@ const navItems = [
   { href: "/kb", label: "지식 베이스", icon: BookOpen },
   { href: "/inquiries", label: "문의 관리", icon: MessageSquare },
   { href: "/conversations", label: "대화 로그", icon: MessagesSquare },
+  { href: "/customers", label: "고객 관리", icon: Users },
   { href: "/settings", label: "설정", icon: Settings },
 ];
 

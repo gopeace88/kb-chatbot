@@ -1,0 +1,26 @@
+{
+  "name": "@kb-chatbot/kb-cli",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "cli": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "@kb-chatbot/database": "workspace:*",
+    "@kb-chatbot/kb-engine": "workspace:*",
+    "@kb-chatbot/shared": "workspace:*",
+    "drizzle-orm": "^0.38.0",
+    "chalk": "^5.4.0",
+    "commander": "^13.1.0",
+    "dotenv": "^16.4.0",
+    "pdf-parse": "^1.1.1"
+  },
+  "devDependencies": {
+    "@types/pdf-parse": "^1.1.4",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}

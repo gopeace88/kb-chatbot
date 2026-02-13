@@ -96,7 +96,7 @@ kakao.post("/skill", async (c) => {
   const response =
     result.source === "fallback"
       ? buildFallbackResponse()
-      : buildAnswerResponse(result.answer);
+      : buildAnswerResponse(result.answer, result.imageUrl);
 
   // ── 비동기 저장 (응답 반환 후 — CF Workers waitUntil) ──
 

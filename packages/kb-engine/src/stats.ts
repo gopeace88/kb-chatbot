@@ -1,4 +1,4 @@
-import { eq, sql, count, gte, and } from "drizzle-orm";
+import { eq, sql, count, gte, and, avg, isNull, isNotNull } from "drizzle-orm";
 import {
   knowledgeItems,
   rawInquiries,
@@ -109,5 +109,106 @@ export async function getConversationStats(
   return {
     bySource: bySource.map((r) => ({ source: r.source, count: r.count })),
     byDate: byDate.map((r) => ({ date: r.date, count: r.count })),
+  };
+}
+
+export interface RAGStats {
+  sourceDist: Array<{ source: string; count: number; pct: number }>;
+  dailyConversations: Array<{ date: string; count: number }>;
+  avgSimilarity: number;
+  feedbackStats: { helpful: number; notHelpful: number; noFeedback: number };
+  categoryUsage: Array<{ category: string; count: number }>;
+}
+
+/**
+ * RAG 성능 종합 통계
+ */
+export async function getRAGStats(db: Database): Promise<RAGStats> {
+  const since = new Date();
+  since.setDate(since.getDate() - 7);
+
+  const [
+    bySource,
+    dailyConversations,
+    [{ avgSim }],
+    [{ helpful }],
+    [{ notHelpful }],
+    [{ noFeedback }],
+    categoryUsage,
+  ] = await Promise.all([
+    // 응답 소스 분포
+    db
+      .select({
+        source: conversations.responseSource,
+        count: count(),
+      })
+      .from(conversations)
+      .groupBy(conversations.responseSource),
+    // 일별 대화 추이 (7일)
+    db
+      .select({
+        date: sql<string>`DATE(${conversations.createdAt})`,
+        count: count(),
+      })
+      .from(conversations)
+      .where(gte(conversations.createdAt, since))
+      .groupBy(sql`DATE(${conversations.createdAt})`)
+      .orderBy(sql`DATE(${conversations.createdAt})`),
+    // 평균 유사도 (kb_match만)
+    db
+      .select({
+        avgSim: sql<number>`COALESCE(AVG(${conversations.similarityScore}), 0)`,
+      })
+      .from(conversations)
+      .where(eq(conversations.responseSource, "kb_match")),
+    // 피드백 통계
+    db
+      .select({ helpful: count() })
+      .from(conversations)
+      .where(eq(conversations.wasHelpful, true)),
+    db
+      .select({ notHelpful: count() })
+      .from(conversations)
+      .where(eq(conversations.wasHelpful, false)),
+    db
+      .select({ noFeedback: count() })
+      .from(conversations)
+      .where(isNull(conversations.wasHelpful)),
+    // 카테고리별 KB 사용 빈도
+    db
+      .select({
+        category: sql<string>`COALESCE(${knowledgeItems.category}, '미분류')`,
+        count: count(),
+      })
+      .from(conversations)
+      .innerJoin(
+        knowledgeItems,
+        sql`${conversations.matchedKbId} = ${knowledgeItems.id}`,
+      )
+      .where(isNotNull(conversations.matchedKbId))
+      .groupBy(knowledgeItems.category)
+      .orderBy(sql`COUNT(*) DESC`)
+      .limit(10),
+  ]);
+
+  const totalConv = bySource.reduce((sum, r) => sum + r.count, 0);
+  const sourceDist = bySource.map((r) => ({
+    source: r.source,
+    count: r.count,
+    pct: totalConv > 0 ? Math.round((r.count / totalConv) * 100) : 0,
+  }));
+
+  return {
+    sourceDist,
+    dailyConversations: dailyConversations.map((r) => ({
+      date: r.date,
+      count: r.count,
+    })),
+    avgSimilarity: Math.round(Number(avgSim) * 1000) / 1000,
+    feedbackStats: { helpful, notHelpful, noFeedback },
+    categoryUsage: categoryUsage.map((r) => ({
+      category: r.category,
+      count: r.count,
+    })),
   };
 }

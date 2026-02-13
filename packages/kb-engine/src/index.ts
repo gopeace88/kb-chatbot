@@ -1,5 +1,5 @@
 // Core functions
-export { generateEmbedding, generateEmbeddings } from "./embedding.js";
+export { generateEmbedding, generateEmbeddings, type EmbeddingOptions } from "./embedding.js";
 export { searchKnowledgeBase, type SearchResult } from "./search.js";
 export { generateAnswer } from "./answer.js";
 export { refineInquiry, type RefinedQA } from "./refine.js";
@@ -41,8 +41,10 @@ export {
 export {
   getDashboardStats,
   getConversationStats,
+  getRAGStats,
   type DashboardStats,
   type ConversationStats,
+  type RAGStats,
 } from "./stats.js";
 
 // Collector
@@ -62,7 +64,11 @@ export {
 export {
   getCustomerLink,
   upsertCustomerLink,
+  listCustomerLinks,
+  getCustomerStats,
   type CustomerLink,
+  type CustomerStats,
+  type ListCustomerLinksFilter,
 } from "./customer-links.js";
 
 // Cafe24 Token Store
