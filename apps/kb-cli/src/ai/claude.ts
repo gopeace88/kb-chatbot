@@ -30,17 +30,18 @@ async function chatCompletion(messages: ChatMessage[], maxTokens = 2000): Promis
 /** Generate Q&A pairs from a text chunk */
 export async function generateQAPairs(
   chunk: string,
-  _apiKey?: string,
-): Promise<Array<{ question: string; answer: string; category: string }>> {
+  options?: { startPage?: number },
+): Promise<Array<{ question: string; answer: string; category: string; pageNumber?: number }>> {
   const text = await chatCompletion([
     {
       role: "user",
       content: `아래 내용을 분석하여 고객 FAQ Q&A 쌍을 만들어줘.
 각 Q&A는 고객이 실제로 물어볼 법한 질문과 친절한 답변으로 구성해.
 카테고리는: 배송, 교환/반품, 사용법, AS/수리, 결제, 기타 중 하나.
+${options?.startPage ? `이 내용은 약 ${options.startPage}페이지부터 시작합니다. 각 Q&A가 몇 페이지의 내용인지 pageNumber 필드도 포함해줘.` : ""}
 
 JSON 배열로 응답해:
-[{"question": "...", "answer": "...", "category": "..."}]
+[{"question": "...", "answer": "...", "category": "..."${options?.startPage ? ', "pageNumber": 3' : ""}}]
 
 내용:
 ${chunk}`,

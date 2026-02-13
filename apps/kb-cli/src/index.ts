@@ -3,6 +3,7 @@ import { ingestCommand } from "./commands/ingest.js";
 import { improveCommand } from "./commands/improve.js";
 import { dedupeCommand } from "./commands/dedupe.js";
 import { listCommand } from "./commands/list.js";
+import { serveCommand } from "./commands/serve.js";
 
 const program = new Command();
 
@@ -40,5 +41,11 @@ program
   .option("--search <query>", "검색어")
   .option("--page <number>", "페이지")
   .action(listCommand);
+
+program
+  .command("serve")
+  .description("대시보드 연동용 로컬 HTTP 서버를 시작합니다")
+  .option("--port <number>", "포트 번호 (기본: 3457)")
+  .action(serveCommand);
 
 program.parse();

@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
   BookOpen,
+  FileUp,
   MessageSquare,
   MessagesSquare,
   Users,
@@ -15,6 +16,7 @@ import {
 const navItems = [
   { href: "/", label: "대시보드", icon: LayoutDashboard },
   { href: "/kb", label: "지식 베이스", icon: BookOpen },
+  { href: "/kb/ingest", label: "문서 인제스트", icon: FileUp },
   { href: "/inquiries", label: "문의 관리", icon: MessageSquare },
   { href: "/conversations", label: "대화 로그", icon: MessagesSquare },
   { href: "/customers", label: "고객 관리", icon: Users },
@@ -34,10 +36,18 @@ export function Sidebar() {
       </div>
       <nav className="flex-1 space-y-1 px-3 py-4">
         {navItems.map((item) => {
+          // Check if a more specific nav item matches the pathname.
+          // E.g. on /kb/ingest, highlight /kb/ingest but not /kb.
+          const hasMoreSpecificMatch = navItems.some(
+            (other) =>
+              other.href !== item.href &&
+              other.href.startsWith(item.href) &&
+              pathname.startsWith(other.href),
+          );
           const isActive =
             item.href === "/"
               ? pathname === "/"
-              : pathname.startsWith(item.href);
+              : pathname.startsWith(item.href) && !hasMoreSpecificMatch;
           return (
             <Link
               key={item.href}
