@@ -101,3 +101,89 @@ export function buildAgentTransferResponse(): KakaoSkillResponse {
     },
   };
 }
+
+/**
+ * 카카오싱크 전화번호 인증 요청 응답
+ * 주문/배송 조회를 위해 전화번호 인증이 필요할 때 사용
+ */
+export function buildKakaoSyncPromptResponse(
+  consentUrl: string,
+): KakaoSkillResponse {
+  return {
+    version: "2.0",
+    template: {
+      outputs: [
+        {
+          basicCard: {
+            title: "전화번호 인증 필요",
+            description:
+              "주문/배송 조회를 위해 전화번호 인증이 필요합니다.\n아래 버튼을 눌러 인증을 완료해주세요.",
+            buttons: [
+              {
+                action: "webLink",
+                label: "전화번호 인증하기",
+                webLinkUrl: consentUrl,
+              },
+            ],
+          },
+        },
+      ],
+    },
+  };
+}
+
+/**
+ * 주문 목록 응답 빌더
+ */
+export function buildOrderListResponse(
+  orders: Array<{
+    productName: string;
+    statusLabel: string;
+    trackingNo?: string | null;
+  }>,
+): KakaoSkillResponse {
+  if (orders.length === 0) {
+    return {
+      version: "2.0",
+      template: {
+        outputs: [
+          simpleText("최근 주문 내역이 없습니다."),
+        ],
+      },
+    };
+  }
+
+  const lines = orders.slice(0, 5).map((order, i) => {
+    let line = `${i + 1}. ${order.productName} - ${order.statusLabel}`;
+    if (order.trackingNo) {
+      line += ` (운송장: ${order.trackingNo})`;
+    }
+    return line;
+  });
+
+  const text = `📦 최근 주문 내역\n\n${lines.join("\n")}`;
+
+  return {
+    version: "2.0",
+    template: {
+      outputs: [simpleText(text)],
+      quickReplies: feedbackQuickReplies(),
+    },
+  };
+}
+
+/**
+ * Cafe24 연결 중 안내 응답
+ */
+export function buildLinkingInProgressResponse(): KakaoSkillResponse {
+  return {
+    version: "2.0",
+    template: {
+      outputs: [
+        simpleText(
+          "전화번호는 확인되었으나, 쇼핑몰 계정과 매칭되는 고객 정보를 찾지 못했습니다.\n쇼핑몰에 가입하신 전화번호가 맞는지 확인해주세요.",
+        ),
+      ],
+    },
+  };
+}

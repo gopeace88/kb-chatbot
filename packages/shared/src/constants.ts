@@ -1,5 +1,5 @@
 /** 문의 채널 */
-export const CHANNELS = ["kakao", "coupang", "naver", "manual"] as const;
+export const CHANNELS = ["kakao", "coupang", "naver", "cafe24", "manual"] as const;
 export type Channel = (typeof CHANNELS)[number];
 
 /** 지식 베이스 상태 */
@@ -36,8 +36,10 @@ export const DEFAULT_CATEGORIES = [
 
 /** 벡터 검색 설정 */
 export const VECTOR_SEARCH = {
-  /** 코사인 유사도 임계값 */
+  /** 직접 KB 매칭 임계값 (이 이상이면 KB 답변 직접 반환) */
   SIMILARITY_THRESHOLD: 0.8,
+  /** 검색 컨텍스트 임계값 (이 이상이면 AI 답변 컨텍스트로 활용) */
+  CONTEXT_THRESHOLD: 0.3,
   /** 반환할 최대 결과 수 */
   MAX_RESULTS: 3,
   /** 임베딩 차원 수 */

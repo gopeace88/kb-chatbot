@@ -16,6 +16,15 @@ export interface Env {
   COUPANG_VENDOR_ID: string;
   NAVER_CLIENT_ID: string;
   NAVER_CLIENT_SECRET: string;
+
+  // Cafe24 API (Phase 7)
+  CAFE24_MALL_ID: string;
+  CAFE24_CLIENT_ID: string;
+  CAFE24_CLIENT_SECRET: string;
+
+  // 카카오싱크 (Phase 7)
+  KAKAO_ADMIN_KEY: string;
+  KAKAO_REST_API_KEY: string;
 }
 
 /** Hono 컨텍스트에 주입되는 변수 */

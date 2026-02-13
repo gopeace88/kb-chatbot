@@ -1,5 +1,5 @@
 // Core functions
-export { generateEmbedding } from "./embedding.js";
+export { generateEmbedding, generateEmbeddings } from "./embedding.js";
 export { searchKnowledgeBase, type SearchResult } from "./search.js";
 export { generateAnswer } from "./answer.js";
 export { refineInquiry, type RefinedQA } from "./refine.js";
@@ -44,3 +44,30 @@ export {
   type DashboardStats,
   type ConversationStats,
 } from "./stats.js";
+
+// Collector
+export {
+  createSyncLog,
+  completeSyncLog,
+  failSyncLog,
+  listSyncLogs,
+  getLastSyncTime,
+  getExistingExternalIds,
+  bulkCreateInquiries,
+  type SyncResult,
+  type InquiryToCreate,
+} from "./collector.js";
+
+// Customer Links
+export {
+  getCustomerLink,
+  upsertCustomerLink,
+  type CustomerLink,
+} from "./customer-links.js";
+
+// Cafe24 Token Store
+export {
+  DbTokenStore,
+  type TokenStore,
+  type TokenData,
+} from "./cafe24-tokens.js";

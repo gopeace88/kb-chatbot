@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
-import type { AppEnv } from "./lib/env.js";
+import type { AppEnv, Env } from "./lib/env.js";
 import { dbMiddleware } from "./middleware/db.js";
 import { cfAccessAuth } from "./middleware/auth.js";
 import { kakao } from "./routes/kakao.js";
@@ -10,6 +10,8 @@ import { inquiry } from "./routes/inquiry.js";
 import { conversationsRoute } from "./routes/conversations.js";
 import { stats } from "./routes/stats.js";
 import { collector } from "./routes/collector.js";
+import { cafe24OAuth } from "./routes/cafe24-oauth.js";
+import { runScheduledSync } from "./lib/scheduled.js";
 
 const app = new Hono<AppEnv>();
 
@@ -47,6 +49,7 @@ app.route("/api/inquiries", inquiry);
 app.route("/api/conversations", conversationsRoute);
 app.route("/api/stats", stats);
 app.route("/api/collector", collector);
+app.route("/api/cafe24/oauth", cafe24OAuth);
 
 // 404
 app.notFound((c) => {
@@ -59,4 +62,18 @@ app.onError((err, c) => {
   return c.json({ error: "Internal Server Error" }, 500);
 });
 
-export default app;
+export default {
+  fetch: app.fetch,
+
+  /**
+   * CF Workers Cron Trigger 핸들러
+   * 매시간 실행: 쿠팡/네이버 문의 incremental sync
+   */
+  async scheduled(
+    _event: ScheduledEvent,
+    env: Env,
+    ctx: ExecutionContext,
+  ): Promise<void> {
+    ctx.waitUntil(runScheduledSync(env));
+  },
+};

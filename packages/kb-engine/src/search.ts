@@ -1,5 +1,4 @@
-import { sql, gt, eq, asc } from "drizzle-orm";
-import { cosineDistance } from "drizzle-orm/sql/functions";
+import { sql } from "drizzle-orm";
 import { knowledgeItems, type Database } from "@kb-chatbot/database";
 import { VECTOR_SEARCH } from "@kb-chatbot/shared";
 
@@ -14,8 +13,8 @@ export interface SearchResult {
 /**
  * 벡터 유사도 검색으로 지식 베이스에서 매칭되는 Q&A 검색
  *
- * cosineDistance: 0 = 동일, 2 = 정반대
- * similarity = 1 - cosineDistance: 1 = 동일, -1 = 정반대
+ * pgvector <=> 연산자: cosine distance (0 = 동일, 2 = 정반대)
+ * similarity = 1 - distance: 1 = 동일, -1 = 정반대
  */
 export async function searchKnowledgeBase(
   db: Database,
@@ -25,14 +24,10 @@ export async function searchKnowledgeBase(
     maxResults?: number;
   },
 ): Promise<SearchResult[]> {
-  const threshold = options?.threshold ?? VECTOR_SEARCH.SIMILARITY_THRESHOLD;
+  const threshold = options?.threshold ?? VECTOR_SEARCH.CONTEXT_THRESHOLD;
   const maxResults = options?.maxResults ?? VECTOR_SEARCH.MAX_RESULTS;
 
-  const distance = cosineDistance(
-    knowledgeItems.questionEmbedding,
-    queryEmbedding,
-  );
-  const similarity = sql<number>`1 - ${distance}`;
+  const embeddingStr = `[${queryEmbedding.join(",")}]`;
 
   const results = await db
     .select({
@@ -40,13 +35,13 @@ export async function searchKnowledgeBase(
       question: knowledgeItems.question,
       answer: knowledgeItems.answer,
       category: knowledgeItems.category,
-      similarity,
+      similarity: sql<number>`1 - (question_embedding <=> ${embeddingStr}::vector)`,
     })
     .from(knowledgeItems)
     .where(
-      sql`${eq(knowledgeItems.status, "published")} AND ${gt(similarity, threshold)}`,
+      sql`status = 'published' AND 1 - (question_embedding <=> ${embeddingStr}::vector) > ${threshold}`,
     )
-    .orderBy(asc(distance))
+    .orderBy(sql`question_embedding <=> ${embeddingStr}::vector`)
     .limit(maxResults);
 
   return results;

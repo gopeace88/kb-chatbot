@@ -5,5 +5,5 @@ compatibility_date = "2024-12-01"
 [observability]
 enabled = true
 
-# [triggers]
-# crons = ["0 * * * *"]  # 매시간 수집 (Phase 6에서 활성화)
+[triggers]
+crons = ["0 * * * *"]  # 매시간 쿠팡/네이버 문의 수집

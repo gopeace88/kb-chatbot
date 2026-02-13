@@ -8,7 +8,7 @@ import {
   varchar,
   vector,
 } from "drizzle-orm/pg-core";
-import { kbStatusEnum } from "./enums.js";
+import { kbStatusEnum } from "./enums";
 
 export const knowledgeItems = pgTable(
   "knowledge_items",

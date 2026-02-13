@@ -8,8 +8,8 @@ import {
   varchar,
   vector,
 } from "drizzle-orm/pg-core";
-import { channelEnum, inquiryStatusEnum } from "./enums.js";
-import { knowledgeItems } from "./knowledge-items.js";
+import { channelEnum, inquiryStatusEnum } from "./enums";
+import { knowledgeItems } from "./knowledge-items";
 
 export const rawInquiries = pgTable(
   "raw_inquiries",

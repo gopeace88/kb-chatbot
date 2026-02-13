@@ -4,6 +4,7 @@ export const channelEnum = pgEnum("channel", [
   "kakao",
   "coupang",
   "naver",
+  "cafe24",
   "manual",
 ]);
 

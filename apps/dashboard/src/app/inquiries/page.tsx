@@ -22,6 +22,7 @@ const channelLabel: Record<string, string> = {
   kakao: "카카오톡",
   coupang: "쿠팡",
   naver: "네이버",
+  cafe24: "카페24",
   manual: "수동",
 };
 
@@ -69,6 +70,7 @@ function InquiriesContent() {
           <option value="kakao">카카오톡</option>
           <option value="coupang">쿠팡</option>
           <option value="naver">네이버</option>
+          <option value="cafe24">카페24</option>
           <option value="manual">수동</option>
         </Select>
         <Select value={status} onChange={(e) => setStatus(e.target.value)} className="w-32">

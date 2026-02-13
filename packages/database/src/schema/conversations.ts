@@ -8,8 +8,8 @@ import {
   real,
   boolean,
 } from "drizzle-orm/pg-core";
-import { responseSourceEnum } from "./enums.js";
-import { knowledgeItems } from "./knowledge-items.js";
+import { responseSourceEnum } from "./enums";
+import { knowledgeItems } from "./knowledge-items";
 
 export const conversations = pgTable(
   "conversations",

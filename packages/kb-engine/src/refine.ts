@@ -1,3 +1,5 @@
+const OPENAI_BASE_URL =
+  "https://gateway.ai.cloudflare.com/v1/28b9de8f436a1a7b49eeb39d61b1fefd/kb-chatbot/openai";
 const REFINE_MODEL = "gpt-4o";
 
 export interface RefinedQA {
@@ -38,7 +40,7 @@ export async function refineInquiry(
   originalAnswer: string,
   apiKey: string,
 ): Promise<RefinedQA> {
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+  const response = await fetch(OPENAI_BASE_URL + "/chat/completions", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,

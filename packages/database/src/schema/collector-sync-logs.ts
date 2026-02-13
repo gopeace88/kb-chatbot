@@ -6,7 +6,7 @@ import {
   uuid,
   varchar,
 } from "drizzle-orm/pg-core";
-import { syncStatusEnum, syncTypeEnum } from "./enums.js";
+import { syncStatusEnum, syncTypeEnum } from "./enums";
 
 export const collectorSyncLogs = pgTable("collector_sync_logs", {
   id: uuid("id").primaryKey().defaultRandom(),

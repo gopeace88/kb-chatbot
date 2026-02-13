@@ -54,7 +54,7 @@ export interface KBItem {
 
 export interface Inquiry {
   id: string;
-  channel: "kakao" | "coupang" | "naver" | "manual";
+  channel: "kakao" | "coupang" | "naver" | "cafe24" | "manual";
   externalId: string | null;
   customerName: string | null;
   questionText: string;
@@ -93,6 +93,25 @@ export interface DashboardStats {
 export interface ConversationStats {
   bySource: Array<{ source: string; count: number }>;
   byDate: Array<{ date: string; count: number }>;
+}
+
+export interface SyncResult {
+  syncLogId: string;
+  recordsFetched: number;
+  recordsCreated: number;
+  errors: string[];
+}
+
+export interface SyncLog {
+  id: string;
+  platform: string;
+  syncType: "full" | "incremental";
+  status: "running" | "completed" | "failed";
+  recordsFetched: number;
+  recordsCreated: number;
+  errorMessage: string | null;
+  startedAt: string;
+  completedAt: string | null;
 }
 
 // ── API 함수 ──
@@ -150,4 +169,23 @@ export const api = {
   },
   getConversationStats: (days?: number) =>
     apiClient<ConversationStats>(`/api/conversations/stats?days=${days || 7}`),
+
+  // Collector
+  syncCoupang: (syncType?: "full" | "incremental") =>
+    apiClient<SyncResult>("/api/collector/coupang/sync", {
+      method: "POST",
+      body: JSON.stringify({ syncType: syncType || "incremental" }),
+    }),
+  syncNaver: (syncType?: "full" | "incremental") =>
+    apiClient<SyncResult>("/api/collector/naver/sync", {
+      method: "POST",
+      body: JSON.stringify({ syncType: syncType || "incremental" }),
+    }),
+  syncCafe24: (syncType?: "full" | "incremental") =>
+    apiClient<SyncResult>("/api/collector/cafe24/sync", {
+      method: "POST",
+      body: JSON.stringify({ syncType: syncType || "incremental" }),
+    }),
+  getCollectorLogs: (limit?: number) =>
+    apiClient<{ data: SyncLog[] }>(`/api/collector/logs?limit=${limit || 50}`),
 };
