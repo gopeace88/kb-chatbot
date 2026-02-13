@@ -11,6 +11,8 @@ import {
   getCustomerLink,
   upsertCustomerLink,
 } from "@kb-chatbot/kb-engine";
+import { conversations, blockedTerms } from "@kb-chatbot/database";
+import { and, gte, eq, count } from "drizzle-orm";
 import { kakaoSkillAuth } from "../middleware/kakao-auth.js";
 import {
   buildAnswerResponse,
@@ -20,6 +22,8 @@ import {
   buildKakaoSyncPromptResponse,
   buildOrderListResponse,
   buildLinkingInProgressResponse,
+  buildBlockedResponse,
+  buildRateLimitResponse,
 } from "../lib/kakao-response.js";
 import { Cafe24Client, getOrderStatusLabel } from "../lib/cafe24-client.js";
 import { DbTokenStore } from "../lib/cafe24-token-store.js";
@@ -51,6 +55,13 @@ kakao.post("/skill", async (c) => {
 
   const db = c.get("db");
 
+  // ── 차단 용어 필터링 ──
+
+  const blocked = await checkBlockedTerms(db, utterance);
+  if (blocked) {
+    return c.json(buildBlockedResponse());
+  }
+
   // ── 특수 명령어 처리 ──
 
   if (utterance === "도움이 됐어요") {
@@ -72,6 +83,13 @@ kakao.post("/skill", async (c) => {
 
   if (utterance === "상담사 연결") {
     return c.json(buildAgentTransferResponse());
+  }
+
+  // ── 속도 제한 체크 ──
+
+  const rateLimited = await checkRateLimit(db, kakaoUserId);
+  if (rateLimited) {
+    return c.json(buildRateLimitResponse());
   }
 
   // ── 주문/배송 의도 감지 ──
@@ -341,6 +359,93 @@ async function handleOrderIntent(
     console.error("Cafe24 order query failed:", err);
     return null; // fallthrough to KB
   }
+}
+
+/**
+ * 차단 용어 체크
+ *
+ * blockedTerms 테이블에서 모든 패턴을 로드하고,
+ * matchType에 따라 utterance를 검사한다.
+ *
+ * @returns true if the utterance matches a blocked term
+ */
+async function checkBlockedTerms(
+  db: Parameters<typeof getCustomerLink>[0],
+  utterance: string,
+): Promise<boolean> {
+  const terms = await db.select().from(blockedTerms);
+  const lowerUtterance = utterance.toLowerCase();
+
+  for (const term of terms) {
+    const pattern = term.pattern;
+    switch (term.matchType) {
+      case "contains":
+        if (lowerUtterance.includes(pattern.toLowerCase())) return true;
+        break;
+      case "exact":
+        if (lowerUtterance === pattern.toLowerCase()) return true;
+        break;
+      case "regex":
+        try {
+          if (new RegExp(pattern, "i").test(utterance)) return true;
+        } catch {
+          // invalid regex pattern — skip
+          console.warn(`Invalid blocked term regex: ${pattern}`);
+        }
+        break;
+    }
+  }
+  return false;
+}
+
+/**
+ * 속도 제한 체크
+ *
+ * conversations 테이블에서 해당 kakaoUserId의 최근 메시지 수를 확인.
+ * - 1시간 내 30건 초과 → 차단
+ * - 24시간 내 100건 초과 → 차단
+ *
+ * @returns true if rate limit is exceeded
+ */
+async function checkRateLimit(
+  db: Parameters<typeof getCustomerLink>[0],
+  kakaoUserId: string,
+): Promise<boolean> {
+  const now = Date.now();
+  const hourAgo = new Date(now - 60 * 60 * 1000);
+  const dayAgo = new Date(now - 24 * 60 * 60 * 1000);
+
+  // 1시간 내 메시지 수
+  const [hourResult] = await db
+    .select({ value: count() })
+    .from(conversations)
+    .where(
+      and(
+        eq(conversations.kakaoUserId, kakaoUserId),
+        gte(conversations.createdAt, hourAgo),
+      ),
+    );
+
+  if (hourResult && hourResult.value >= 30) {
+    return true;
+  }
+
+  // 24시간 내 메시지 수
+  const [dayResult] = await db
+    .select({ value: count() })
+    .from(conversations)
+    .where(
+      and(
+        eq(conversations.kakaoUserId, kakaoUserId),
+        gte(conversations.createdAt, dayAgo),
+      ),
+    );
+
+  if (dayResult && dayResult.value >= 100) {
+    return true;
+  }
+
+  return false;
 }
 
 /**

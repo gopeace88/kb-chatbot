@@ -10,6 +10,7 @@ import {
   MessageSquare,
   MessagesSquare,
   Users,
+  Shield,
   Settings,
 } from "lucide-react";
 
@@ -20,6 +21,7 @@ const navItems = [
   { href: "/inquiries", label: "문의 관리", icon: MessageSquare },
   { href: "/conversations", label: "대화 로그", icon: MessagesSquare },
   { href: "/customers", label: "고객 관리", icon: Users },
+  { href: "/settings/blocked-terms", label: "차단 관리", icon: Shield },
   { href: "/settings", label: "설정", icon: Settings },
 ];
 

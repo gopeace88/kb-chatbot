@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { api, type Inquiry } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
-import { ArrowLeft, Sparkles, Upload } from "lucide-react";
+import { ArrowLeft, Shield, Sparkles, Upload } from "lucide-react";
 
 const channelLabel: Record<string, string> = {
   kakao: "카카오톡",
@@ -83,6 +83,25 @@ function InquiryDetailContent() {
       setError(err instanceof Error ? err.message : "발행 실패");
     } finally {
       setLoading("");
+    }
+  }
+
+  async function handleBlockPattern() {
+    if (!item) return;
+    const pattern = window.prompt(
+      "차단 패턴으로 등록할 문구를 확인/수정하세요:",
+      item.questionText,
+    );
+    if (!pattern || !pattern.trim()) return;
+    try {
+      await api.createBlockedTerm({
+        pattern: pattern.trim(),
+        matchType: "contains",
+        reason: `문의 #${item.id}에서 등록`,
+      });
+      alert("차단 패턴이 등록되었습니다.");
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "차단 패턴 등록 실패");
     }
   }
 
@@ -200,6 +219,10 @@ function InquiryDetailContent() {
                   </Button>
                 </Link>
               )}
+              <Button variant="outline" className="w-full" onClick={handleBlockPattern}>
+                <Shield className="h-4 w-4" />
+                무시 패턴 등록
+              </Button>
             </CardContent>
           </Card>
         </div>

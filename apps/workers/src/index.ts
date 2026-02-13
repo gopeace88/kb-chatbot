@@ -12,6 +12,7 @@ import { stats } from "./routes/stats.js";
 import { collector } from "./routes/collector.js";
 import { cafe24OAuth } from "./routes/cafe24-oauth.js";
 import { customers } from "./routes/customers.js";
+import { blockedTermsRoute } from "./routes/blocked-terms.js";
 import { runScheduledSync } from "./lib/scheduled.js";
 
 const app = new Hono<AppEnv>();
@@ -63,6 +64,7 @@ app.route("/api/stats", stats);
 app.route("/api/collector", collector);
 app.route("/api/cafe24/oauth", cafe24OAuth);
 app.route("/api/customers", customers);
+app.route("/api/blocked-terms", blockedTermsRoute);
 
 // 404
 app.notFound((c) => {

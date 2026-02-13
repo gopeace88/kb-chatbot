@@ -155,6 +155,15 @@ export interface SyncLog {
   completedAt: string | null;
 }
 
+export interface BlockedTerm {
+  id: string;
+  pattern: string;
+  matchType: "contains" | "exact" | "regex";
+  reason: string | null;
+  createdBy: string | null;
+  createdAt: string;
+}
+
 // ── API 함수 ──
 
 export const api = {
@@ -240,4 +249,12 @@ export const api = {
 
   // RAG Stats
   getRAGStats: () => apiClient<RAGStats>("/api/stats/rag"),
+
+  // Blocked Terms
+  listBlockedTerms: () =>
+    apiClient<{ data: BlockedTerm[] }>("/api/blocked-terms"),
+  createBlockedTerm: (data: { pattern: string; matchType?: string; reason?: string }) =>
+    apiClient<BlockedTerm>("/api/blocked-terms", { method: "POST", body: JSON.stringify(data) }),
+  deleteBlockedTerm: (id: string) =>
+    apiClient<{ success: boolean }>(`/api/blocked-terms/${id}`, { method: "DELETE" }),
 };

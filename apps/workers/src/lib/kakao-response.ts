@@ -198,6 +198,38 @@ export function buildOrderListResponse(
 }
 
 /**
+ * 차단 용어 매칭 시 응답
+ */
+export function buildBlockedResponse(): KakaoSkillResponse {
+  return {
+    version: "2.0",
+    template: {
+      outputs: [
+        simpleText(
+          "해당 문의는 처리할 수 없습니다. 제품 관련 문의를 해주세요.",
+        ),
+      ],
+    },
+  };
+}
+
+/**
+ * 속도 제한 초과 시 응답
+ */
+export function buildRateLimitResponse(): KakaoSkillResponse {
+  return {
+    version: "2.0",
+    template: {
+      outputs: [
+        simpleText(
+          "잠시 후 다시 문의해주세요. (1시간 내 문의 횟수 초과)",
+        ),
+      ],
+    },
+  };
+}
+
+/**
  * Cafe24 연결 중 안내 응답
  */
 export function buildLinkingInProgressResponse(): KakaoSkillResponse {

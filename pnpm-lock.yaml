@@ -124,6 +124,9 @@ importers:
       '@kb-chatbot/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      drizzle-orm:
+        specifier: ^0.38.4
+        version: 0.38.4(@cloudflare/workers-types@4.20260212.0)(@neondatabase/serverless@0.10.4)(@types/pg@8.11.6)(@types/react@19.2.14)(react@19.2.4)
       hono:
         specifier: ^4.6.0
         version: 4.11.9

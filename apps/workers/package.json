@@ -13,6 +13,7 @@
     "@kb-chatbot/database": "workspace:*",
     "@kb-chatbot/kb-engine": "workspace:*",
     "@kb-chatbot/shared": "workspace:*",
+    "drizzle-orm": "^0.38.4",
     "hono": "^4.6.0"
   },
   "devDependencies": {
