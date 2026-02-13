@@ -31,7 +31,7 @@ export async function ingestCommand(
 
     let text: string;
     try {
-      text = await extractFromFile(file, config.anthropicApiKey);
+      text = await extractFromFile(file);
     } catch (err) {
       console.log(chalk.red(`  텍스트 추출 실패: ${err}`));
       continue;
@@ -44,7 +44,7 @@ export async function ingestCommand(
     for (const chunk of chunks) {
       let qaPairs: Array<{ question: string; answer: string; category: string }>;
       try {
-        qaPairs = await generateQAPairs(chunk.text, config.anthropicApiKey);
+        qaPairs = await generateQAPairs(chunk.text);
       } catch (err) {
         console.log(chalk.red(`  Q&A 생성 실패 (청크 ${chunk.index}): ${err}`));
         continue;
@@ -113,10 +113,10 @@ async function resolveFiles(path: string): Promise<string[]> {
   return [];
 }
 
-async function extractFromFile(file: string, anthropicApiKey: string): Promise<string> {
+async function extractFromFile(file: string): Promise<string> {
   const ext = extname(file).toLowerCase();
   if (ext === ".pdf") return extractTextFromPDF(file);
-  if (isImageFile(file)) return extractTextFromImage(file, anthropicApiKey);
+  if (isImageFile(file)) return extractTextFromImage(file);
   return (await readFile(file, "utf-8")).toString();
 }
 

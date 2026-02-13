@@ -45,7 +45,6 @@ export async function improveCommand(options: {
       item.question,
       item.answer,
       context.map((c) => ({ question: c.question, answer: c.answer })),
-      config.anthropicApiKey,
     );
 
     if (suggestion.answer === item.answer) {

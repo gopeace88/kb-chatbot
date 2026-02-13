@@ -69,7 +69,6 @@ export async function dedupeCommand(options: {
     const suggestion = await suggestMerge(
       { question: pair.i.question, answer: pair.i.answer },
       { question: pair.j.question, answer: pair.j.answer },
-      config.anthropicApiKey,
     );
 
     console.log(chalk.green(`  병합 제안:`));

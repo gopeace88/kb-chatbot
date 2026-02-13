@@ -10,17 +10,14 @@ const MIME_MAP: Record<string, "image/jpeg" | "image/png" | "image/gif" | "image
   ".webp": "image/webp",
 };
 
-export async function extractTextFromImage(
-  filePath: string,
-  anthropicApiKey: string,
-): Promise<string> {
+export async function extractTextFromImage(filePath: string): Promise<string> {
   const buffer = await readFile(filePath);
   const base64 = buffer.toString("base64");
   const ext = extname(filePath).toLowerCase();
   const mediaType = MIME_MAP[ext];
   if (!mediaType) throw new Error(`Unsupported image format: ${ext}`);
 
-  return analyzeImage(base64, mediaType, anthropicApiKey);
+  return analyzeImage(base64, mediaType);
 }
 
 export function isImageFile(filePath: string): boolean {
