@@ -39,7 +39,7 @@ export const VECTOR_SEARCH = {
   /** 직접 KB 매칭 임계값 (이 이상이면 KB 답변 직접 반환) */
   SIMILARITY_THRESHOLD: 0.8,
   /** 검색 컨텍스트 임계값 (이 이상이면 AI 답변 컨텍스트로 활용) */
-  CONTEXT_THRESHOLD: 0.2,
+  CONTEXT_THRESHOLD: 0.1,
   /** 반환할 최대 결과 수 */
   MAX_RESULTS: 10,
   /** 임베딩 차원 수 */

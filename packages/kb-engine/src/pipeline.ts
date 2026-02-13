@@ -42,8 +42,14 @@ export async function answerPipeline(
     // 1. 임베딩 생성
     const embedding = await generateEmbedding(question, config.openaiApiKey);
 
-    // 2. KB 벡터 검색
-    const kbResults = await searchKnowledgeBase(config.db, embedding);
+    // 2. KB 벡터 검색 (결과 없으면 임계값 없이 재검색)
+    let kbResults = await searchKnowledgeBase(config.db, embedding);
+    if (kbResults.length === 0) {
+      kbResults = await searchKnowledgeBase(config.db, embedding, {
+        threshold: 0,
+        maxResults: 5,
+      });
+    }
 
     // 3. 고유사도 매칭 → KB 답변 직접 반환
     if (
