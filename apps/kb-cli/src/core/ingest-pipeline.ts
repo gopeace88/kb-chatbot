@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { searchKnowledgeBase } from "@kb-chatbot/kb-engine";
 import type { Database } from "@kb-chatbot/database";
 import { chunkText } from "../processors/chunker.js";
-import { generateQAPairs, analyzeImage } from "../ai/claude.js";
+import { generateQAPairs, generateQAFromPages, analyzeImage } from "../ai/claude.js";
 import { embedText } from "../ai/openai.js";
 import { renderPdfPages } from "../processors/pdf-pages.js";
 import type { R2Config } from "../storage/r2.js";
@@ -19,6 +19,7 @@ export interface IngestEvent {
     | "pages_rendered"
     | "qa_generating"
     | "qa_generated"
+    | "dedup_checking"
     | "file_done"
     | "complete"
     | "error";
@@ -62,7 +63,7 @@ const IMAGE_MIME_TYPES = new Set([
 ]);
 
 // ---------------------------------------------------------------------------
-// Text extraction from buffer (no filesystem access)
+// Text extraction from buffer (non-PDF)
 // ---------------------------------------------------------------------------
 
 export async function extractTextFromBuffer(
@@ -70,8 +71,6 @@ export async function extractTextFromBuffer(
   mimeType: string,
 ): Promise<string> {
   if (mimeType === "application/pdf") {
-    // Use pdfjs-dist to extract text with \f page boundaries
-    // (pdf-parse does not insert form feeds reliably)
     const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
     const doc = await pdfjsLib.getDocument({ data: new Uint8Array(buffer) }).promise;
     const pageTexts: string[] = [];
@@ -91,8 +90,65 @@ export async function extractTextFromBuffer(
     return analyzeImage(base64, mediaType);
   }
 
-  // Default: treat as UTF-8 text
   return buffer.toString("utf-8");
+}
+
+// ---------------------------------------------------------------------------
+// PDF-specific: extract per-page text
+// ---------------------------------------------------------------------------
+
+async function extractPageTexts(buffer: Buffer): Promise<string[]> {
+  const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const doc = await pdfjsLib.getDocument({ data: new Uint8Array(buffer) }).promise;
+  const pageTexts: string[] = [];
+  for (let i = 1; i <= doc.numPages; i++) {
+    const page = await doc.getPage(i);
+    const content = await page.getTextContent();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const text = content.items.map((item: any) => item.str).join(" ");
+    pageTexts.push(text);
+  }
+  return pageTexts;
+}
+
+// ---------------------------------------------------------------------------
+// Dedup helper
+// ---------------------------------------------------------------------------
+
+async function* dedupCandidates(
+  candidates: QACandidate[],
+  config: IngestConfig,
+  db: Database,
+  fileName: string,
+): AsyncGenerator<IngestEvent> {
+  for (const candidate of candidates) {
+    try {
+      const embedding = await embedText(candidate.question, config.openaiApiKey);
+      const existing = await searchKnowledgeBase(db, embedding, {
+        threshold: DEDUP_THRESHOLD,
+        maxResults: 1,
+      });
+
+      if (existing.length > 0) {
+        candidate.isDuplicate = true;
+        candidate.duplicateOf = {
+          id: existing[0].id,
+          question: existing[0].question,
+          similarity: existing[0].similarity,
+        };
+      }
+    } catch (err) {
+      yield {
+        type: "error",
+        data: {
+          fileName,
+          stage: "dedup_check",
+          question: candidate.question.slice(0, 60),
+          message: String(err),
+        },
+      };
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -107,46 +163,32 @@ export async function* runIngestPipeline(
   const allCandidates: QACandidate[] = [];
 
   for (const file of files) {
-    const fileStartIdx = allCandidates.length;
-
-    // --- file_start ---
     yield {
       type: "file_start",
       data: { fileName: file.name, mimeType: file.mimeType },
     };
 
-    // --- extract text ---
-    let text: string;
-    try {
-      text = await extractTextFromBuffer(file.buffer, file.mimeType);
-    } catch (err) {
-      yield {
-        type: "error",
-        data: {
-          fileName: file.name,
-          stage: "text_extraction",
-          message: String(err),
-        },
-      };
-      continue;
-    }
-
-    yield {
-      type: "text_extracted",
-      data: { fileName: file.name, textLength: text.length },
-    };
-
-    // --- Render PDF pages to images (local only, R2 upload deferred to approve) ---
-    let pageBuffers: Map<number, Buffer> | undefined;
-
+    // ================================================================
+    // PDF path: page images + page texts → Claude 통째로 처리
+    // ================================================================
     if (file.mimeType === "application/pdf") {
+      // --- Extract per-page text ---
+      let pageTexts: string[];
+      try {
+        pageTexts = await extractPageTexts(file.buffer);
+      } catch (err) {
+        yield { type: "error", data: { fileName: file.name, stage: "text_extraction", message: String(err) } };
+        continue;
+      }
+
+      const totalChars = pageTexts.reduce((sum, t) => sum + t.length, 0);
+      yield { type: "text_extracted", data: { fileName: file.name, textLength: totalChars } };
+
+      // --- Render page images ---
+      let pageBuffers: Map<number, Buffer>;
       try {
         const pages = await renderPdfPages(file.buffer);
-        pageBuffers = new Map();
-
-        for (const page of pages) {
-          pageBuffers.set(page.pageNum, page.image);
-        }
+        pageBuffers = new Map(pages.map((p) => [p.pageNum, p.image]));
 
         yield {
           type: "pages_rendered",
@@ -157,33 +199,91 @@ export async function* runIngestPipeline(
           },
         };
       } catch (err) {
-        // PDF page rendering failed — continue without images
-        yield {
-          type: "error",
-          data: {
-            fileName: file.name,
-            stage: "page_rendering",
-            message: String(err),
-          },
-        };
+        yield { type: "error", data: { fileName: file.name, stage: "page_rendering", message: String(err) } };
+        continue; // Can't proceed without images for PDF path
       }
+
+      // --- Generate Q&A from all pages at once ---
+      yield {
+        type: "qa_generating",
+        data: { fileName: file.name, chunkIndex: 0, totalChunks: 1 },
+      };
+
+      const pagesInput = [...pageBuffers.entries()].map(([pageNum, buf]) => ({
+        pageNum,
+        base64: buf.toString("base64"),
+        text: pageTexts[pageNum - 1] || "",
+      }));
+
+      let qaPairs: Array<{ question: string; answer: string; category: string; pageNumber: number }>;
+      try {
+        console.log(`[pipeline] Calling generateQAFromPages with ${pagesInput.length} pages`);
+        qaPairs = await generateQAFromPages(pagesInput);
+        console.log(`[pipeline] generateQAFromPages returned ${qaPairs.length} Q&A pairs`);
+      } catch (err) {
+        console.error(`[pipeline] generateQAFromPages error:`, err);
+        yield { type: "error", data: { fileName: file.name, stage: "qa_generation", message: String(err) } };
+        continue;
+      }
+
+      // --- Build candidates with image URLs ---
+      const candidates: QACandidate[] = qaPairs.map((qa) => ({
+        id: randomUUID(),
+        question: qa.question,
+        answer: qa.answer,
+        category: qa.category,
+        imageUrl: pageBuffers.has(qa.pageNumber)
+          ? `local://page/${qa.pageNumber}`
+          : pageBuffers.size > 0
+            ? `local://page/${pageBuffers.keys().next().value}`
+            : undefined,
+        chunkIndex: 0,
+        fileName: file.name,
+        isDuplicate: false,
+      }));
+
+      yield {
+        type: "qa_generated",
+        data: { fileName: file.name, chunkIndex: 0, candidates, count: candidates.length },
+      };
+
+      // --- Dedup ---
+      yield { type: "dedup_checking", data: { fileName: file.name, count: candidates.length } };
+      for await (const event of dedupCandidates(candidates, config, db, file.name)) {
+        yield event;
+      }
+
+      allCandidates.push(...candidates);
+
+      yield {
+        type: "file_done",
+        data: { fileName: file.name, candidateCount: candidates.length },
+      };
+
+      continue; // Next file
     }
 
-    // --- Keep original image buffer for local serving ---
-    let imageFileBuffer: Buffer | undefined;
+    // ================================================================
+    // Non-PDF path: text extraction → chunking → Q&A (기존 로직)
+    // ================================================================
+    let text: string;
+    try {
+      text = await extractTextFromBuffer(file.buffer, file.mimeType);
+    } catch (err) {
+      yield { type: "error", data: { fileName: file.name, stage: "text_extraction", message: String(err) } };
+      continue;
+    }
 
+    yield { type: "text_extracted", data: { fileName: file.name, textLength: text.length } };
+
+    let imageFileBuffer: Buffer | undefined;
     if (IMAGE_MIME_TYPES.has(file.mimeType)) {
       imageFileBuffer = file.buffer;
     }
 
-    // --- chunk ---
     const chunks = chunkText(text);
-    yield {
-      type: "chunks_created",
-      data: { fileName: file.name, chunkCount: chunks.length },
-    };
+    yield { type: "chunks_created", data: { fileName: file.name, chunkCount: chunks.length } };
 
-    // --- process each chunk ---
     for (const chunk of chunks) {
       yield {
         type: "qa_generating",
@@ -194,100 +294,40 @@ export async function* runIngestPipeline(
       try {
         qaPairs = await generateQAPairs(chunk.text, { startPage: chunk.startPage });
       } catch (err) {
-        yield {
-          type: "error",
-          data: {
-            fileName: file.name,
-            stage: "qa_generation",
-            chunkIndex: chunk.index,
-            message: String(err),
-          },
-        };
+        yield { type: "error", data: { fileName: file.name, stage: "qa_generation", chunkIndex: chunk.index, message: String(err) } };
         continue;
       }
 
-      // --- deduplicate each Q&A ---
-      const candidates: QACandidate[] = [];
+      const candidates: QACandidate[] = qaPairs.map((qa) => ({
+        id: randomUUID(),
+        question: qa.question,
+        answer: qa.answer,
+        category: qa.category,
+        imageUrl: imageFileBuffer ? "local://image/original" : undefined,
+        chunkIndex: chunk.index,
+        fileName: file.name,
+        isDuplicate: false,
+      }));
 
-      for (const qa of qaPairs) {
-        // Resolve page number: Claude's response > chunk's startPage > first page
-        const resolvedPage = qa.pageNumber ?? chunk.startPage ?? 1;
-
-        const candidate: QACandidate = {
-          id: randomUUID(),
-          question: qa.question,
-          answer: qa.answer,
-          category: qa.category,
-          imageUrl:
-            // Always use local reference — R2 upload happens at approve time
-            (imageFileBuffer ? "local://image/original" : undefined) ??
-            (pageBuffers?.has(resolvedPage)
-              ? `local://page/${resolvedPage}`
-              : pageBuffers?.size
-                ? `local://page/${pageBuffers.keys().next().value}`
-                : undefined),
-          chunkIndex: chunk.index,
-          fileName: file.name,
-          isDuplicate: false,
-        };
-
-        try {
-          const embedding = await embedText(qa.question, config.openaiApiKey);
-          const existing = await searchKnowledgeBase(db, embedding, {
-            threshold: DEDUP_THRESHOLD,
-            maxResults: 1,
-          });
-
-          if (existing.length > 0) {
-            candidate.isDuplicate = true;
-            candidate.duplicateOf = {
-              id: existing[0].id,
-              question: existing[0].question,
-              similarity: existing[0].similarity,
-            };
-          }
-        } catch (err) {
-          // If dedup check fails, keep the candidate as non-duplicate
-          // and let the user decide
-          yield {
-            type: "error",
-            data: {
-              fileName: file.name,
-              stage: "dedup_check",
-              chunkIndex: chunk.index,
-              question: qa.question.slice(0, 60),
-              message: String(err),
-            },
-          };
-        }
-
-        candidates.push(candidate);
+      // Dedup
+      for await (const event of dedupCandidates(candidates, config, db, file.name)) {
+        yield event;
       }
 
       yield {
         type: "qa_generated",
-        data: {
-          fileName: file.name,
-          chunkIndex: chunk.index,
-          candidates,
-          count: candidates.length,
-        },
+        data: { fileName: file.name, chunkIndex: chunk.index, candidates, count: candidates.length },
       };
 
       allCandidates.push(...candidates);
     }
 
-    // --- file_done ---
     yield {
       type: "file_done",
-      data: {
-        fileName: file.name,
-        candidateCount: allCandidates.length - fileStartIdx,
-      },
+      data: { fileName: file.name, candidateCount: allCandidates.length },
     };
   }
 
-  // --- complete ---
   yield {
     type: "complete",
     data: {

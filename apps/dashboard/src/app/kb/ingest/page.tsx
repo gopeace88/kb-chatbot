@@ -31,6 +31,7 @@ export default function IngestPage() {
   const [candidates, setCandidates] = useState<QACandidate[]>([]);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [savedCount, setSavedCount] = useState<number>(0);
+  const [availableImages, setAvailableImages] = useState<Record<string, string>>({});
 
   // Check server health on mount
   useEffect(() => {
@@ -71,8 +72,9 @@ export default function IngestPage() {
     }
   }, []);
 
-  const handleProcessingComplete = useCallback((cands: QACandidate[]) => {
+  const handleProcessingComplete = useCallback((cands: QACandidate[], images?: Record<string, string>) => {
     setCandidates(cands);
+    setAvailableImages(images || {});
     setPhase("review");
   }, []);
 
@@ -85,6 +87,7 @@ export default function IngestPage() {
     setPhase("idle");
     setJobId(null);
     setCandidates([]);
+    setAvailableImages({});
     setUploadError(null);
     setSavedCount(0);
   }, []);
@@ -177,6 +180,7 @@ export default function IngestPage() {
             <QAReviewList
               candidates={candidates}
               jobId={jobId}
+              availableImages={availableImages}
               onSaved={handleSaved}
             />
           </>

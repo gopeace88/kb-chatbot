@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { api, type KBItem } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
-import { ArrowLeft, Check, Archive, Pencil } from "lucide-react";
+import { ArrowLeft, Check, Archive, Pencil, X } from "lucide-react";
 
 const categories = ["배송", "교환/반품", "사용법", "AS/수리", "결제", "기타"];
 const statusBadge = {
@@ -40,6 +40,7 @@ function KBDetailContent() {
   const [imageUrl, setImageUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) { router.push("/kb"); return; }
@@ -93,6 +94,29 @@ function KBDetailContent() {
 
   return (
     <div>
+      {/* Lightbox */}
+      {lightboxUrl && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
+          onClick={() => setLightboxUrl(null)}
+        >
+          <button
+            type="button"
+            className="absolute right-4 top-4 z-10 rounded-full bg-black/50 p-2 text-white hover:bg-black/70"
+            onClick={() => setLightboxUrl(null)}
+          >
+            <X className="h-6 w-6" />
+          </button>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={lightboxUrl}
+            alt="이미지 크게 보기"
+            className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
+
       <Link href="/kb" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-gray-900">
         <ArrowLeft className="h-4 w-4" />
         목록으로
@@ -160,7 +184,14 @@ function KBDetailContent() {
                     placeholder="https://example.com/product.jpg"
                   />
                   {imageUrl && (
-                    <img src={imageUrl} alt="미리보기" className="mt-2 max-h-40 rounded border" />
+                    <button
+                      type="button"
+                      onClick={() => setLightboxUrl(imageUrl)}
+                      className="mt-2 cursor-zoom-in"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={imageUrl} alt="미리보기" className="max-h-40 rounded border transition-opacity hover:opacity-80" />
+                    </button>
                   )}
                 </div>
                 <div className="flex gap-2">
@@ -185,7 +216,17 @@ function KBDetailContent() {
                 {item.imageUrl && (
                   <div>
                     <div className="text-sm font-medium text-muted-foreground">이미지</div>
-                    <img src={item.imageUrl} alt="KB 이미지" className="mt-1 max-h-48 rounded border" />
+                    <button
+                      type="button"
+                      onClick={() => setLightboxUrl(item.imageUrl!)}
+                      className="group relative mt-1 cursor-zoom-in"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={item.imageUrl} alt="KB 이미지" className="max-h-48 rounded border transition-opacity group-hover:opacity-80" />
+                      <span className="absolute bottom-2 right-2 rounded bg-black/60 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100">
+                        크게 보기
+                      </span>
+                    </button>
                   </div>
                 )}
               </>

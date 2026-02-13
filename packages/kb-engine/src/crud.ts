@@ -23,6 +23,7 @@ export interface CreateKBItemInput {
   sourceInquiryId?: string;
   createdBy?: string;
   imageUrl?: string;
+  status?: "draft" | "published";
 }
 
 export interface UpdateKBItemInput {
@@ -52,7 +53,7 @@ export async function createKBItem(
       sourceInquiryId: input.sourceInquiryId ?? null,
       createdBy: input.createdBy ?? null,
       imageUrl: input.imageUrl ?? null,
-      status: "draft",
+      status: input.status ?? "draft",
     })
     .returning();
 

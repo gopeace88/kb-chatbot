@@ -24,10 +24,14 @@ async function chatCompletion(messages: ChatMessage[], maxTokens = 2000): Promis
   }
 
   const data = await res.json() as { choices: Array<{ message: { content: string } }> };
-  return data.choices?.[0]?.message?.content || "";
+  const content = data.choices?.[0]?.message?.content || "";
+  if (!content) {
+    console.error("[claude] Empty response from proxy. Full data:", JSON.stringify(data).slice(0, 300));
+  }
+  return content;
 }
 
-/** Generate Q&A pairs from a text chunk */
+/** Generate Q&A pairs from a text chunk (text-only, for non-PDF files) */
 export async function generateQAPairs(
   chunk: string,
   options?: { startPage?: number },
@@ -54,6 +58,74 @@ ${chunk}`,
     return JSON.parse(jsonMatch[0]);
   } catch {
     console.error("Q&A JSON 파싱 실패, 건너뜀");
+    return [];
+  }
+}
+
+/**
+ * Generate Q&A from PDF pages — sends page images + page texts to Claude in one call.
+ * For PDFs > PAGE_BATCH_SIZE pages, batches automatically.
+ */
+const PAGE_BATCH_SIZE = 15;
+
+export async function generateQAFromPages(
+  pages: Array<{ pageNum: number; base64: string; text: string }>,
+): Promise<Array<{ question: string; answer: string; category: string; pageNumber: number }>> {
+  if (pages.length === 0) return [];
+
+  // Batch large PDFs
+  if (pages.length > PAGE_BATCH_SIZE) {
+    const allResults: Array<{ question: string; answer: string; category: string; pageNumber: number }> = [];
+    for (let i = 0; i < pages.length; i += PAGE_BATCH_SIZE) {
+      const batch = pages.slice(i, Math.min(i + PAGE_BATCH_SIZE, pages.length));
+      const batchResults = await generateQAFromPages(batch);
+      allResults.push(...batchResults);
+    }
+    return allResults;
+  }
+
+  // Build text-only prompt with all page texts
+  // (claude-max-api-proxy doesn't support multimodal image_url content)
+  const pageTexts = pages
+    .map((page) => `=== ${page.pageNum}페이지 ===\n${page.text}`)
+    .join("\n\n");
+
+  const pageRange = pages.length === 1
+    ? `${pages[0].pageNum}페이지`
+    : `${pages[0].pageNum}~${pages[pages.length - 1].pageNum}페이지`;
+
+  const prompt = `아래는 PDF 문서의 ${pageRange} 텍스트입니다. 이 내용을 분석하여 고객 FAQ Q&A 쌍을 만들어주세요.
+
+규칙:
+- 각 Q&A는 고객이 실제로 물어볼 법한 질문과 친절한 답변으로 구성
+- 카테고리: 배송, 교환/반품, 사용법, AS/수리, 결제, 기타 중 하나
+- pageNumber: 해당 Q&A의 내용이 주로 나오는 페이지 번호
+- 가능한 많은 Q&A를 생성해주세요
+
+JSON 배열로만 응답해 (다른 텍스트 없이):
+[{"question": "...", "answer": "...", "category": "...", "pageNumber": 3}]
+
+문서 내용:
+${pageTexts}`;
+
+  console.log(`[claude] generateQAFromPages: ${pages.length}페이지, prompt length: ${prompt.length}`);
+
+  const text = await chatCompletion([{ role: "user", content: prompt }], 8000);
+
+  console.log(`[claude] Response length: ${text.length}, first 200 chars: ${text.slice(0, 200)}`);
+
+  const jsonMatch = text.match(/\[[\s\S]*\]/);
+  if (!jsonMatch) {
+    console.error("[claude] No JSON array found in response. Full response:", text.slice(0, 500));
+    return [];
+  }
+  try {
+    const parsed = JSON.parse(jsonMatch[0]);
+    console.log(`[claude] Parsed ${parsed.length} Q&A pairs`);
+    return parsed;
+  } catch (e) {
+    console.error("[claude] PDF Q&A JSON 파싱 실패:", e);
+    console.error("[claude] JSON text:", jsonMatch[0].slice(0, 300));
     return [];
   }
 }

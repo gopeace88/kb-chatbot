@@ -2,6 +2,7 @@ export interface Chunk {
   text: string;
   index: number;
   startPage?: number;
+  endPage?: number;
 }
 
 export function chunkText(
@@ -26,19 +27,29 @@ export function chunkText(
     const end = Math.min(start + maxLength, text.length);
     const chunkText = text.slice(start, end).trim();
 
-    // Find which page this chunk starts on
+    // Find which page this chunk starts and ends on
     let startPage: number | undefined;
+    let endPage: number | undefined;
     if (pageBreaks.length > 1) {
-      const pageIdx = pageBreaks.findIndex((offset, i) => {
+      const startIdx = pageBreaks.findIndex((offset, i) => {
         const next = pageBreaks[i + 1] ?? Infinity;
         return start >= offset && start < next;
       });
-      if (pageIdx >= 0) {
-        startPage = pageIdx + 1; // 1-based
+      if (startIdx >= 0) {
+        startPage = startIdx + 1; // 1-based
+      }
+
+      const endOffset = end - 1;
+      const endIdx = pageBreaks.findIndex((offset, i) => {
+        const next = pageBreaks[i + 1] ?? Infinity;
+        return endOffset >= offset && endOffset < next;
+      });
+      if (endIdx >= 0) {
+        endPage = endIdx + 1;
       }
     }
 
-    chunks.push({ text: chunkText, index, startPage });
+    chunks.push({ text: chunkText, index, startPage, endPage });
     start += maxLength - overlap;
     index++;
   }

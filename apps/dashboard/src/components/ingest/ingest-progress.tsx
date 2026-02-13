@@ -31,7 +31,7 @@ interface LogEntry {
 
 interface IngestProgressProps {
   jobId: string;
-  onComplete: (candidates: QACandidate[]) => void;
+  onComplete: (candidates: QACandidate[], availableImages?: Record<string, string>) => void;
 }
 
 function getStatusIcon(status: FileProgress["status"]) {
@@ -156,6 +156,11 @@ export function IngestProgress({ jobId, onComplete }: IngestProgressProps) {
           addLog(`[${fileName}] Q&A ${count}개 생성됨`);
           break;
         }
+        case "dedup_checking": {
+          const fileName = data.fileName as string;
+          addLog(`[${fileName}] 중복 검사 중... (${data.count}개 Q&A)`);
+          break;
+        }
         case "file_done": {
           const fileName = data.fileName as string;
           const candidateCount = data.candidateCount as number;
@@ -172,13 +177,32 @@ export function IngestProgress({ jobId, onComplete }: IngestProgressProps) {
         case "complete": {
           setOverallStatus("complete");
           addLog("모든 파일 처리 완료!");
-          // Fetch final job data and call onComplete
-          ingestApi.getJob(jobId).then((job) => {
-            onComplete(job.candidates);
-          }).catch((err) => {
-            addLog(`Q&A 후보 데이터 로딩 실패: ${err instanceof Error ? err.message : err}`, true);
-            setOverallStatus("error");
-          });
+          // Fetch final job data with retry (server may still be finalizing candidates)
+          const fetchWithRetry = async (retries = 3, delay = 500): Promise<void> => {
+            for (let i = 0; i < retries; i++) {
+              try {
+                const job = await ingestApi.getJob(jobId);
+                if (job.candidates.length > 0 || i === retries - 1) {
+                  onComplete(job.candidates, job.availableImages);
+                  if (job.candidates.length === 0) {
+                    addLog("경고: 생성된 Q&A가 없습니다. 파일 내용을 확인해주세요.", true);
+                  }
+                  return;
+                }
+                // 0 candidates but retries left — wait and try again
+                addLog(`Q&A 데이터 로딩 대기 중... (${i + 1}/${retries})`);
+                await new Promise((r) => setTimeout(r, delay));
+              } catch (err) {
+                if (i === retries - 1) {
+                  addLog(`Q&A 후보 데이터 로딩 실패: ${err instanceof Error ? err.message : err}`, true);
+                  setOverallStatus("error");
+                  return;
+                }
+                await new Promise((r) => setTimeout(r, delay));
+              }
+            }
+          };
+          fetchWithRetry();
           break;
         }
         case "error": {

@@ -67,13 +67,14 @@ export async function answerPipeline(
         kbResults,
         config.openaiApiKey,
       );
+      const topResult = kbResults.length > 0 ? kbResults[0] : null;
+      const imageResult = kbResults.find((r) => r.imageUrl);
       return {
         answer: aiAnswer,
         source: "ai_generated",
         matchedKbId: null,
-        similarityScore:
-          kbResults.length > 0 ? kbResults[0].similarity : null,
-        imageUrl: null,
+        similarityScore: topResult ? topResult.similarity : null,
+        imageUrl: imageResult?.imageUrl ?? null,
         kbResults,
       };
     }

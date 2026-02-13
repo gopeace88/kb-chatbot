@@ -10,7 +10,7 @@ import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { api, type KBItem, type PaginatedResponse } from "@/lib/api";
 import { formatDate, truncate } from "@/lib/utils";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, X } from "lucide-react";
 
 const statusBadge = {
   draft: { label: "초안", variant: "warning" as const },
@@ -32,6 +32,7 @@ function KBListContent() {
   const [data, setData] = useState<PaginatedResponse<KBItem> | null>(null);
   const [search, setSearch] = useState(searchParams.get("search") || "");
   const [status, setStatus] = useState(searchParams.get("status") || "");
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   const page = Number(searchParams.get("page") || "1");
 
@@ -55,6 +56,29 @@ function KBListContent() {
 
   return (
     <div>
+      {/* Lightbox */}
+      {lightboxUrl && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
+          onClick={() => setLightboxUrl(null)}
+        >
+          <button
+            type="button"
+            className="absolute right-4 top-4 z-10 rounded-full bg-black/50 p-2 text-white hover:bg-black/70"
+            onClick={() => setLightboxUrl(null)}
+          >
+            <X className="h-6 w-6" />
+          </button>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={lightboxUrl}
+            alt="이미지 크게 보기"
+            className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">지식 베이스</h1>
         <Link href="/kb/new">
@@ -112,7 +136,14 @@ function KBListContent() {
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       {item.imageUrl && (
-                        <img src={item.imageUrl} alt="" className="h-8 w-8 flex-shrink-0 rounded object-cover" />
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); setLightboxUrl(item.imageUrl!); }}
+                          className="group relative flex-shrink-0 cursor-zoom-in overflow-hidden rounded"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={item.imageUrl} alt="" className="h-10 w-10 rounded object-cover transition-opacity group-hover:opacity-80" />
+                        </button>
                       )}
                       <div>
                         <div className="font-medium text-gray-900">

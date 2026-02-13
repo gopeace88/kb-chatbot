@@ -8,6 +8,7 @@ export type IngestEventType =
   | "pages_rendered"
   | "qa_generating"
   | "qa_generated"
+  | "dedup_checking"
   | "file_done"
   | "complete"
   | "error";
@@ -43,7 +44,7 @@ export interface IngestJob {
   candidateCount: number;
   candidates: QACandidate[];
   events: IngestEvent[];
-  pageImages?: Record<string, string>;
+  availableImages?: Record<string, string>;
 }
 
 export interface HealthResponse {

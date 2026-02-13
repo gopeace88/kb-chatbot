@@ -22,14 +22,15 @@ app.use(
   "/api/*",
   cors({
     origin: (origin) => {
-      const allowed = [
-        "http://localhost:3000",
-        "http://localhost:3001",
-        "https://kb-chatbot.pages.dev",
-      ];
-      if (allowed.includes(origin)) return origin;
-      // CF Pages preview deployments
+      // CF Pages production + preview deployments
+      if (origin === "https://kb-chatbot.pages.dev") return origin;
       if (origin.endsWith(".kb-chatbot.pages.dev")) return origin;
+      // Allow localhost (any port) + private network IPs for local dev
+      try {
+        const url = new URL(origin);
+        if (url.hostname === "localhost" || url.hostname === "127.0.0.1") return origin;
+        if (/^(192\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/.test(url.hostname)) return origin;
+      } catch {}
       return null;
     },
     allowMethods: ["GET", "POST", "PUT", "DELETE"],

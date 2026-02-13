@@ -5,7 +5,10 @@ const API_BASE =
     : "http://localhost:8787");
 
 const isDev =
-  typeof window !== "undefined" && window.location.hostname === "localhost";
+  typeof window !== "undefined" &&
+  (window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1" ||
+    /^(192\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/.test(window.location.hostname));
 
 export async function apiClient<T>(
   path: string,

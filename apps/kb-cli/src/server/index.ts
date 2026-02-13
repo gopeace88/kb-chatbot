@@ -22,10 +22,17 @@ export function createApp(db: Database, openaiApiKey: string, port: number, r2Co
   app.use(
     "*",
     cors({
-      origin: [
-        "http://localhost:3000",
-        "http://localhost:3001",
-      ],
+      origin: (origin) => {
+        // Allow localhost and local network origins
+        if (!origin) return origin;
+        try {
+          const url = new URL(origin);
+          if (url.hostname === "localhost" || url.hostname === "127.0.0.1") return origin;
+          // Allow private network IPs (192.x, 10.x, 172.16-31.x)
+          if (/^(192\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/.test(url.hostname)) return origin;
+        } catch {}
+        return undefined;
+      },
       allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
       allowHeaders: ["Content-Type"],
     }),

@@ -105,38 +105,61 @@ async function runPipelineInBackground(
         }
       }
 
+      // Accumulate candidates from qa_generated events (so they're available before complete)
+      if (result.value.type === "qa_generated") {
+        const cands = result.value.data.candidates as QACandidate[] | undefined;
+        if (cands && cands.length > 0) {
+          job.candidates.push(...cands);
+        }
+      }
+
+      // For the "complete" event: finalize candidates + resolve URLs BEFORE broadcasting
+      if (result.value.type === "complete") {
+        // Resolve local:// URLs to actual HTTP URLs
+        const baseUrl = `http://localhost:${port}/ingest/jobs/${job.id}/images`;
+        for (const candidate of job.candidates) {
+          if (candidate.imageUrl?.startsWith("local://")) {
+            const path = candidate.imageUrl.replace("local://", "");
+            if (path.startsWith("page/")) {
+              const pageNum = path.replace("page/", "");
+              const key = `page-${pageNum}`;
+              if (job.imageBuffers.has(key)) {
+                candidate.imageUrl = `${baseUrl}/${key}.png`;
+              } else {
+                candidate.imageUrl = undefined;
+              }
+            } else if (path === "image/original") {
+              const key = "original";
+              if (job.imageBuffers.has(key)) {
+                candidate.imageUrl = `${baseUrl}/${key}.png`;
+              } else {
+                candidate.imageUrl = undefined;
+              }
+            }
+          }
+        }
+
+        job.status = "done";
+        console.log(`[ingest] Job ${job.id} complete: ${job.candidates.length} candidates`);
+
+        // Broadcast complete AFTER candidates are ready
+        broadcastEvent(job, result.value);
+        result = await generator.next();
+        continue;
+      }
+
       broadcastEvent(job, result.value);
       result = await generator.next();
     }
 
-    // The generator return value contains all candidates
-    job.candidates = result.value;
-
-    // Resolve local:// URLs to actual HTTP URLs
-    const baseUrl = `http://localhost:${port}/ingest/jobs/${job.id}/images`;
-    for (const candidate of job.candidates) {
-      if (candidate.imageUrl?.startsWith("local://")) {
-        const path = candidate.imageUrl.replace("local://", "");
-        if (path.startsWith("page/")) {
-          const pageNum = path.replace("page/", "");
-          const key = `page-${pageNum}`;
-          if (job.imageBuffers.has(key)) {
-            candidate.imageUrl = `${baseUrl}/${key}.png`;
-          } else {
-            candidate.imageUrl = undefined;
-          }
-        } else if (path === "image/original") {
-          const key = "original";
-          if (job.imageBuffers.has(key)) {
-            candidate.imageUrl = `${baseUrl}/${key}.png`;
-          } else {
-            candidate.imageUrl = undefined;
-          }
-        }
-      }
+    // Generator return value also has all candidates — use as fallback if accumulation missed any
+    if (result.value && Array.isArray(result.value) && result.value.length > 0 && job.candidates.length === 0) {
+      job.candidates = result.value;
     }
 
-    job.status = "done";
+    if (job.status !== "done") {
+      job.status = "done";
+    }
   } catch (err) {
     job.status = "error";
     job.error = String(err);
@@ -314,15 +337,18 @@ export function createIngestRoutes(db: Database, openaiApiKey: string, port: num
       job.sseClients.add(client);
 
       // Keep the connection open until the job completes
-      // We poll the job status to detect completion
+      // Poll job status + send heartbeat to prevent connection timeout
       await new Promise<void>((resolve) => {
         const interval = setInterval(() => {
           if (job.status === "done" || job.status === "error") {
             clearInterval(interval);
             job.sseClients.delete(client);
             resolve();
+            return;
           }
-        }, 500);
+          // Send heartbeat comment to keep connection alive
+          stream.write(": heartbeat\n\n").catch(() => {});
+        }, 10_000);
 
         // Also handle stream abort/close
         stream.onAbort(() => {
@@ -366,13 +392,20 @@ export function createIngestRoutes(db: Database, openaiApiKey: string, port: num
       return c.json({ error: "Job not found" }, 404);
     }
 
+    // Build available image URLs from in-memory buffers
+    const baseUrl = `http://localhost:${port}/ingest/jobs/${job.id}/images`;
+    const availableImages: Record<string, string> = {};
+    for (const key of job.imageBuffers.keys()) {
+      availableImages[key] = `${baseUrl}/${key}.png`;
+    }
+
     return c.json({
       id: job.id,
       status: job.status,
       candidateCount: job.candidates.length,
       candidates: job.candidates,
       events: job.events,
-      pageImages: job.pageImages,
+      availableImages,
       error: job.error,
     });
   });
@@ -503,6 +536,7 @@ export function createIngestRoutes(db: Database, openaiApiKey: string, port: num
             category: item.category,
             imageUrl: resolvedImageUrl,
             createdBy: "kb-cli-ingest",
+            status: "published",
           },
           openaiApiKey,
           { baseUrl: OPENAI_DIRECT_URL },
