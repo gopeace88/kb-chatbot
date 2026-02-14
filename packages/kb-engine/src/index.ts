@@ -44,11 +44,13 @@ export {
   getRAGStats,
   getTopQuestions,
   getUnansweredQuestions,
+  getPopularQuestions,
   type DashboardStats,
   type ConversationStats,
   type RAGStats,
   type TopQuestion,
   type UnansweredQuestion,
+  type PopularQuestion,
 } from "./stats.js";
 
 // Collector

@@ -10,6 +10,7 @@ import {
   updateConversationFeedback,
   getCustomerLink,
   upsertCustomerLink,
+  getPopularQuestions,
 } from "@kb-chatbot/kb-engine";
 import { conversations, blockedTerms } from "@kb-chatbot/database";
 import { and, gte, eq, count } from "drizzle-orm";
@@ -111,10 +112,19 @@ kakao.post("/skill", async (c) => {
     openaiApiKey: c.env.OPENAI_API_KEY,
   });
 
-  const response =
-    result.source === "fallback"
-      ? buildFallbackResponse()
-      : buildAnswerResponse(result.answer, result.imageUrl);
+  let response;
+  if (result.source === "fallback") {
+    response = buildFallbackResponse();
+  } else {
+    // 인기 질문 조회 (답변 성공 시에만)
+    let popularQuestions: Array<{ question: string }> = [];
+    try {
+      popularQuestions = await getPopularQuestions(db, 5);
+    } catch (err) {
+      console.error("Failed to fetch popular questions:", err);
+    }
+    response = buildAnswerResponse(result.answer, result.imageUrl, popularQuestions);
+  }
 
   // ── 비동기 저장 (응답 반환 후 — CF Workers waitUntil) ──
 

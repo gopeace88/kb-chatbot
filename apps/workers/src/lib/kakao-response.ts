@@ -40,6 +40,7 @@ function feedbackQuickReplies(): KakaoQuickReply[] {
 export function buildAnswerResponse(
   answerText: string,
   imageUrl?: string | null,
+  faqButtons?: Array<{ question: string }>,
 ): KakaoSkillResponse {
   const outputs: KakaoOutput[] = [];
 
@@ -63,11 +64,26 @@ export function buildAnswerResponse(
     outputs.push(simpleText(answerText));
   }
 
+  const quickReplies: KakaoQuickReply[] = feedbackQuickReplies();
+
+  if (faqButtons && faqButtons.length > 0) {
+    for (const faq of faqButtons.slice(0, 5)) {
+      const label = faq.question.length > 14
+        ? faq.question.slice(0, 13) + "…"
+        : faq.question;
+      quickReplies.push({
+        action: "message",
+        label,
+        messageText: faq.question,
+      });
+    }
+  }
+
   return {
     version: "2.0",
     template: {
       outputs,
-      quickReplies: feedbackQuickReplies(),
+      quickReplies,
     },
   };
 }

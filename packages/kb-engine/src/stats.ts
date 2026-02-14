@@ -307,3 +307,42 @@ export async function getUnansweredQuestions(
     lastAsked: r.lastAsked,
   }));
 }
+
+export interface PopularQuestion {
+  question: string;
+}
+
+/**
+ * 최근 30일 가장 많이 매칭된 KB 질문 (quickReply용, 짧은 것만)
+ */
+export async function getPopularQuestions(
+  db: Database,
+  limit: number = 5,
+): Promise<PopularQuestion[]> {
+  const since = new Date();
+  since.setDate(since.getDate() - 30);
+
+  const results = await db
+    .select({
+      question: knowledgeItems.question,
+      matchCount: count(),
+    })
+    .from(conversations)
+    .innerJoin(
+      knowledgeItems,
+      sql`${conversations.matchedKbId} = ${knowledgeItems.id}`,
+    )
+    .where(
+      and(
+        isNotNull(conversations.matchedKbId),
+        gte(conversations.createdAt, since),
+      ),
+    )
+    .groupBy(knowledgeItems.id, knowledgeItems.question)
+    .orderBy(sql`COUNT(*) DESC`)
+    .limit(limit);
+
+  return results.map((r) => ({
+    question: r.question,
+  }));
+}
