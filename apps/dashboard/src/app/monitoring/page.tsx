@@ -124,6 +124,14 @@ function NeonTab({ days }: { days: number }) {
     value: entry.metrics.find((m) => m.metric_name === "compute_unit_seconds")?.value || 0,
   }));
 
+  // Free tier limits
+  const computeHours = (metrics.compute_unit_seconds || proj.compute_time_seconds) / 3600;
+  const computeLimit = 191.9; // Free plan: 191.9 compute hours/month
+  const storageMB = proj.synthetic_storage_size / (1024 * 1024);
+  const storageLimit = 512; // Free plan: 512 MB
+  const transferMB = (metrics.public_network_transfer_bytes || proj.data_transfer_bytes) / (1024 * 1024);
+  const transferLimit = 5 * 1024; // Free plan: 5 GB
+
   return (
     <div>
       {/* 프로젝트 정보 */}
@@ -134,9 +142,21 @@ function NeonTab({ days }: { days: number }) {
         <MetricCard title="Data Transfer" value={formatBytes(metrics.public_network_transfer_bytes || proj.data_transfer_bytes)} subtitle={`${days}일 기준`} />
       </div>
 
+      {/* 무료 한도 사용률 */}
+      <Card className="mt-6">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium text-muted-foreground">무료 한도 사용률 (월간)</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <UsageGauge label="Compute" used={computeHours} limit={computeLimit} unit="hr" />
+          <UsageGauge label="Storage" used={storageMB} limit={storageLimit} unit="MB" />
+          <UsageGauge label="Transfer" used={transferMB} limit={transferLimit} unit="MB" />
+        </CardContent>
+      </Card>
+
       {/* 일별 Compute 추이 */}
       {dailyCompute.length > 0 && (
-        <Card className="mt-6">
+        <Card className="mt-4">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               일별 Compute (CU-seconds)
@@ -217,6 +237,11 @@ function CFWorkersTab({ days }: { days: number }) {
 
   const errorRate = totalRequests > 0 ? ((totalErrors / totalRequests) * 100).toFixed(2) : "0";
 
+  // Free tier: 100K requests/day, calculate daily average
+  const uniqueDays = Object.keys(dailyData).length || 1;
+  const avgDailyRequests = totalRequests / uniqueDays;
+  const dailyLimit = 100000;
+
   return (
     <div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -225,6 +250,16 @@ function CFWorkersTab({ days }: { days: number }) {
         <MetricCard title="서브 요청" value={totalSubrequests.toLocaleString()} subtitle="외부 API 호출" />
         <MetricCard title="스크립트" value={String(Object.keys(scriptData).length)} subtitle="활성 Workers" />
       </div>
+
+      {/* 무료 한도 사용률 */}
+      <Card className="mt-6">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium text-muted-foreground">무료 한도 사용률 (일 평균)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <UsageGauge label="일일 요청" used={avgDailyRequests} limit={dailyLimit} unit="req" />
+        </CardContent>
+      </Card>
 
       {dailyChart.length > 0 && (
         <Card className="mt-6">
@@ -382,6 +417,7 @@ function CFAIGatewayTab({ days }: { days: number }) {
   let totalTokensIn = 0;
   let totalTokensOut = 0;
   const modelData: Record<string, number> = {};
+  const modelCost: Record<string, number> = {};
   const hourlyData: Record<string, number> = {};
 
   for (const g of groups) {
@@ -393,7 +429,7 @@ function CFAIGatewayTab({ days }: { days: number }) {
     totalTokensOut += g.sum.uncachedTokensOut + g.sum.cachedTokensOut;
     const model = g.dimensions.model || "unknown";
     modelData[model] = (modelData[model] || 0) + g.count;
-    // Aggregate by date (from datetimeHour)
+    modelCost[model] = (modelCost[model] || 0) + g.sum.cost;
     const date = g.dimensions.datetimeHour?.split("T")[0];
     if (date) {
       hourlyData[date] = (hourlyData[date] || 0) + g.count;
@@ -427,10 +463,30 @@ function CFAIGatewayTab({ days }: { days: number }) {
       {Object.keys(modelData).length > 0 && (
         <Card className="mt-4">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">모델별 요청</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">모델별 요청 / 비용</CardTitle>
           </CardHeader>
           <CardContent>
-            <BarBreakdown data={modelData} color="bg-purple-500" />
+            <div className="space-y-3">
+              {Object.entries(modelData)
+                .sort(([, a], [, b]) => b - a)
+                .map(([model, count]) => {
+                  const cost = modelCost[model] || 0;
+                  const pct = totalCount > 0 ? Math.round((count / totalCount) * 100) : 0;
+                  return (
+                    <div key={model}>
+                      <div className="flex justify-between text-sm">
+                        <span className="font-mono">{model}</span>
+                        <span className="font-medium">
+                          {count.toLocaleString()}건 · <span className="text-green-700">${cost.toFixed(4)}</span>
+                        </span>
+                      </div>
+                      <div className="mt-1 h-2 w-full rounded-full bg-gray-100">
+                        <div className="h-2 rounded-full bg-purple-500" style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
           </CardContent>
         </Card>
       )}
@@ -451,6 +507,25 @@ function MetricCard({ title, value, subtitle }: { title: string; value: string; 
         <p className="text-xs text-muted-foreground">{subtitle}</p>
       </CardContent>
     </Card>
+  );
+}
+
+function UsageGauge({ label, used, limit, unit }: { label: string; used: number; limit: number; unit: string }) {
+  const pct = Math.min((used / limit) * 100, 100);
+  const color = pct >= 90 ? "bg-red-500" : pct >= 70 ? "bg-yellow-500" : "bg-green-500";
+  const formatVal = (v: number) => v >= 1000 ? `${(v / 1000).toFixed(1)}K` : v.toFixed(1);
+  return (
+    <div>
+      <div className="flex justify-between text-sm">
+        <span className="font-medium">{label}</span>
+        <span className="text-muted-foreground">
+          {formatVal(used)} / {formatVal(limit)} {unit} ({pct.toFixed(1)}%)
+        </span>
+      </div>
+      <div className="mt-1 h-3 w-full rounded-full bg-gray-100">
+        <div className={`h-3 rounded-full ${color} transition-all`} style={{ width: `${pct}%` }} />
+      </div>
+    </div>
   );
 }
 
