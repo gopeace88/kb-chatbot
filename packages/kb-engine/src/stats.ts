@@ -123,9 +123,9 @@ export interface RAGStats {
 /**
  * RAG 성능 종합 통계
  */
-export async function getRAGStats(db: Database): Promise<RAGStats> {
+export async function getRAGStats(db: Database, days: number = 7): Promise<RAGStats> {
   const since = new Date();
-  since.setDate(since.getDate() - 7);
+  since.setDate(since.getDate() - days);
 
   const [
     bySource,
@@ -143,8 +143,9 @@ export async function getRAGStats(db: Database): Promise<RAGStats> {
         count: count(),
       })
       .from(conversations)
+      .where(gte(conversations.createdAt, since))
       .groupBy(conversations.responseSource),
-    // 일별 대화 추이 (7일)
+    // 일별 대화 추이
     db
       .select({
         date: sql<string>`DATE(${conversations.createdAt})`,
@@ -160,20 +161,25 @@ export async function getRAGStats(db: Database): Promise<RAGStats> {
         avgSim: sql<number>`COALESCE(AVG(${conversations.similarityScore}), 0)`,
       })
       .from(conversations)
-      .where(eq(conversations.responseSource, "kb_match")),
+      .where(
+        and(
+          eq(conversations.responseSource, "kb_match"),
+          gte(conversations.createdAt, since),
+        ),
+      ),
     // 피드백 통계
     db
       .select({ helpful: count() })
       .from(conversations)
-      .where(eq(conversations.wasHelpful, true)),
+      .where(and(eq(conversations.wasHelpful, true), gte(conversations.createdAt, since))),
     db
       .select({ notHelpful: count() })
       .from(conversations)
-      .where(eq(conversations.wasHelpful, false)),
+      .where(and(eq(conversations.wasHelpful, false), gte(conversations.createdAt, since))),
     db
       .select({ noFeedback: count() })
       .from(conversations)
-      .where(isNull(conversations.wasHelpful)),
+      .where(and(isNull(conversations.wasHelpful), gte(conversations.createdAt, since))),
     // 카테고리별 KB 사용 빈도
     db
       .select({
@@ -185,7 +191,12 @@ export async function getRAGStats(db: Database): Promise<RAGStats> {
         knowledgeItems,
         sql`${conversations.matchedKbId} = ${knowledgeItems.id}`,
       )
-      .where(isNotNull(conversations.matchedKbId))
+      .where(
+        and(
+          isNotNull(conversations.matchedKbId),
+          gte(conversations.createdAt, since),
+        ),
+      )
       .groupBy(knowledgeItems.category)
       .orderBy(sql`COUNT(*) DESC`)
       .limit(10),
@@ -211,4 +222,47 @@ export async function getRAGStats(db: Database): Promise<RAGStats> {
       count: r.count,
     })),
   };
+}
+
+export interface TopQuestion {
+  id: string;
+  question: string;
+  category: string | null;
+  matchCount: number;
+}
+
+/**
+ * TOP 매칭 질문 (기간 내 가장 많이 매칭된 KB 항목)
+ */
+export async function getTopQuestions(
+  db: Database,
+  limit: number = 10,
+  days: number = 30,
+): Promise<TopQuestion[]> {
+  const since = new Date();
+  since.setDate(since.getDate() - days);
+
+  const results = await db
+    .select({
+      id: knowledgeItems.id,
+      question: knowledgeItems.question,
+      category: knowledgeItems.category,
+      matchCount: count(),
+    })
+    .from(conversations)
+    .innerJoin(
+      knowledgeItems,
+      sql`${conversations.matchedKbId} = ${knowledgeItems.id}`,
+    )
+    .where(
+      and(
+        isNotNull(conversations.matchedKbId),
+        gte(conversations.createdAt, since),
+      ),
+    )
+    .groupBy(knowledgeItems.id, knowledgeItems.question, knowledgeItems.category)
+    .orderBy(sql`COUNT(*) DESC`)
+    .limit(limit);
+
+  return results;
 }

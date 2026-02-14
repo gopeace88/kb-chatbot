@@ -42,9 +42,11 @@ export {
   getDashboardStats,
   getConversationStats,
   getRAGStats,
+  getTopQuestions,
   type DashboardStats,
   type ConversationStats,
   type RAGStats,
+  type TopQuestion,
 } from "./stats.js";
 
 // Collector

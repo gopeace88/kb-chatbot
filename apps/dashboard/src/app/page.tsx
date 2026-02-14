@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { api, type DashboardStats, type RAGStats } from "@/lib/api";
+import { api, type DashboardStats, type RAGStats, type TopQuestion } from "@/lib/api";
 import {
   BookOpen,
   MessageSquare,
@@ -25,12 +25,18 @@ const SOURCE_COLORS: Record<string, string> = {
 export default function DashboardHome() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [rag, setRag] = useState<RAGStats | null>(null);
+  const [topQuestions, setTopQuestions] = useState<TopQuestion[]>([]);
+  const [period, setPeriod] = useState<number>(7);
   const [error, setError] = useState("");
 
   useEffect(() => {
     api.getDashboardStats().then(setStats).catch((e) => setError(e.message));
-    api.getRAGStats().then(setRag).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    api.getRAGStats(period).then(setRag).catch(() => {});
+    api.getTopQuestions(period).then((res) => setTopQuestions(res.data)).catch(() => {});
+  }, [period]);
 
   const cards = [
     {
@@ -86,10 +92,32 @@ export default function DashboardHome() {
         ))}
       </div>
 
-      {/* RAG 성능 섹션 */}
+      {/* 기간 선택 + RAG 성능 섹션 */}
+      <div className="mt-8 flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-gray-900">RAG 성능</h2>
+        <div className="flex gap-1 rounded-lg bg-gray-100 p-1">
+          {[
+            { label: "7일", value: 7 },
+            { label: "30일", value: 30 },
+            { label: "90일", value: 90 },
+          ].map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => setPeriod(opt.value)}
+              className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
+                period === opt.value
+                  ? "bg-white text-gray-900 shadow-sm"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {rag && (
-        <div className="mt-8">
-          <h2 className="text-lg font-semibold text-gray-900">RAG 성능</h2>
+        <div>
 
           <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
             {/* 응답 소스 분포 — 도넛 차트 (conic-gradient) */}
@@ -129,7 +157,7 @@ export default function DashboardHome() {
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
-                  일별 대화 추이 (7일)
+                  일별 대화 추이 ({period}일)
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -224,6 +252,47 @@ export default function DashboardHome() {
               </CardContent>
             </Card>
           </div>
+        </div>
+      )}
+
+      {/* TOP 질문 섹션 */}
+      {topQuestions.length > 0 && (
+        <div className="mt-8">
+          <h2 className="text-lg font-semibold text-gray-900">
+            TOP 질문 ({period}일)
+          </h2>
+          <Card className="mt-4">
+            <CardContent className="pt-6">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-left text-muted-foreground">
+                      <th className="pb-2 pr-4 font-medium">순위</th>
+                      <th className="pb-2 pr-4 font-medium">질문</th>
+                      <th className="pb-2 pr-4 font-medium">카테고리</th>
+                      <th className="pb-2 text-right font-medium">매칭 횟수</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {topQuestions.map((q, idx) => (
+                      <tr key={q.id} className="border-b last:border-0">
+                        <td className="py-2 pr-4 font-medium text-muted-foreground">
+                          {idx + 1}
+                        </td>
+                        <td className="py-2 pr-4">{q.question}</td>
+                        <td className="py-2 pr-4 text-muted-foreground">
+                          {q.category || "미분류"}
+                        </td>
+                        <td className="py-2 text-right font-medium">
+                          {q.matchCount}건
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
     </div>

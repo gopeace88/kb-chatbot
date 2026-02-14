@@ -143,6 +143,13 @@ export interface RAGStats {
   categoryUsage: Array<{ category: string; count: number }>;
 }
 
+export interface TopQuestion {
+  id: string;
+  question: string;
+  category: string | null;
+  matchCount: number;
+}
+
 export interface SyncLog {
   id: string;
   platform: string;
@@ -248,7 +255,12 @@ export const api = {
   getCustomerStats: () => apiClient<CustomerStats>("/api/customers/stats"),
 
   // RAG Stats
-  getRAGStats: () => apiClient<RAGStats>("/api/stats/rag"),
+  getRAGStats: (days = 7) =>
+    apiClient<RAGStats>(`/api/stats/rag?days=${days}`),
+
+  // Top Questions
+  getTopQuestions: (days = 30, limit = 10) =>
+    apiClient<{ data: TopQuestion[] }>(`/api/stats/top-questions?days=${days}&limit=${limit}`),
 
   // Blocked Terms
   listBlockedTerms: () =>
