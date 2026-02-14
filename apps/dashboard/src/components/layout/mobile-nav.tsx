@@ -11,6 +11,7 @@ import {
   BookOpen,
   MessageSquare,
   MessagesSquare,
+  Activity,
   Settings,
 } from "lucide-react";
 
@@ -19,6 +20,7 @@ const navItems = [
   { href: "/kb", label: "지식 베이스", icon: BookOpen },
   { href: "/inquiries", label: "문의 관리", icon: MessageSquare },
   { href: "/conversations", label: "대화 로그", icon: MessagesSquare },
+  { href: "/monitoring", label: "모니터링", icon: Activity },
   { href: "/settings", label: "설정", icon: Settings },
 ];
 
