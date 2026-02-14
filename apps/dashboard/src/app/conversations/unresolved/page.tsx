@@ -148,7 +148,7 @@ export default function UnresolvedPage() {
                     <div className="flex-1">
                       <div className="flex items-center gap-2 text-xs text-gray-500">
                         <Link
-                          href={`/customers/${conv.kakaoUserId}`}
+                          href={`/customers/detail?id=${conv.kakaoUserId}`}
                           className="flex items-center gap-1 font-mono text-primary hover:underline"
                         >
                           <User className="h-3 w-3" />

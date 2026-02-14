@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { api, type Conversation, type PaginatedResponse } from "@/lib/api";
+import { api, type Conversation } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
 import { ArrowLeft, MessageSquare, Calendar, Loader2 } from "lucide-react";
 
@@ -15,9 +15,9 @@ const sourceBadge: Record<string, { label: string; variant: "success" | "default
   fallback: { label: "폴백", variant: "destructive" },
 };
 
-export default function CustomerDetailPage() {
-  const params = useParams();
-  const kakaoUserId = params.id as string;
+function CustomerDetail() {
+  const searchParams = useSearchParams();
+  const kakaoUserId = searchParams.get("id") || "";
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
@@ -41,6 +41,14 @@ export default function CustomerDetailPage() {
   const lastDate = conversations.length > 0
     ? conversations[0].createdAt
     : null;
+
+  if (!kakaoUserId) {
+    return (
+      <div className="py-12 text-center text-gray-500">
+        고객 ID가 지정되지 않았습니다.
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -135,5 +143,13 @@ export default function CustomerDetailPage() {
         </>
       )}
     </div>
+  );
+}
+
+export default function CustomerDetailPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>}>
+      <CustomerDetail />
+    </Suspense>
   );
 }

@@ -55,7 +55,7 @@ function ConversationsContent() {
                 <tr key={conv.id} className="border-b border-border last:border-0">
                   <td className="hidden px-4 py-3 lg:table-cell">
                     <Link
-                      href={`/customers/${conv.kakaoUserId}`}
+                      href={`/customers/detail?id=${conv.kakaoUserId}`}
                       className="font-mono text-xs text-primary hover:underline"
                     >
                       {conv.kakaoUserId.slice(0, 10)}...
