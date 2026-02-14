@@ -49,9 +49,10 @@ kakao.post("/skill", async (c) => {
   const body = await c.req.json<KakaoSkillRequest>();
 
   const utterance = body.userRequest.utterance.trim();
+  const props = body.userRequest.user.properties;
   const kakaoUserId =
-    body.userRequest.user.properties.appUserId ||
-    body.userRequest.user.properties.plusfriendUserKey ||
+    props?.appUserId ||
+    props?.plusfriendUserKey ||
     body.userRequest.user.id;
 
   const db = c.get("db");

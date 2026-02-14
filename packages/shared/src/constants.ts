@@ -41,7 +41,7 @@ export const VECTOR_SEARCH = {
   /** 검색 컨텍스트 임계값 (이 이상이면 AI 답변 컨텍스트로 활용) */
   CONTEXT_THRESHOLD: 0.1,
   /** 반환할 최대 결과 수 */
-  MAX_RESULTS: 10,
+  MAX_RESULTS: 30,
   /** 임베딩 차원 수 */
   EMBEDDING_DIMENSIONS: 1536,
 } as const;
