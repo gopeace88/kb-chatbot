@@ -1,5 +1,11 @@
 const INGEST_URL =
-  process.env.NEXT_PUBLIC_INGEST_URL || "http://localhost:3457";
+  process.env.NEXT_PUBLIC_INGEST_URL ||
+  (typeof window !== "undefined" &&
+  window.location.hostname !== "localhost" &&
+  window.location.hostname !== "127.0.0.1" &&
+  !/^(192\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/.test(window.location.hostname)
+    ? "https://kb-ingest.purions.com"
+    : "http://localhost:3457");
 
 export type IngestEventType =
   | "file_start"
