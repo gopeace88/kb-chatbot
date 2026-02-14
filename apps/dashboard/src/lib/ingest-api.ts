@@ -4,7 +4,7 @@ const INGEST_URL =
   window.location.hostname !== "localhost" &&
   window.location.hostname !== "127.0.0.1" &&
   !/^(192\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/.test(window.location.hostname)
-    ? "https://kb-ingest.purions.com"
+    ? "https://kb-ingest.runvision.ai"
     : "http://localhost:3457");
 
 export type IngestEventType =

@@ -23,12 +23,11 @@ app.use(
   "/api/*",
   cors({
     origin: (origin) => {
+      // Custom domain
+      if (origin.endsWith(".runvision.ai")) return origin;
       // CF Pages production + preview deployments
       if (origin === "https://kb-chatbot.pages.dev") return origin;
       if (origin.endsWith(".kb-chatbot.pages.dev")) return origin;
-      // Vercel production + preview deployments
-      if (origin === "https://kb-chatbot-dashboard.vercel.app") return origin;
-      if (origin.endsWith(".vercel.app") && origin.includes("kb-chatbot-dashboard")) return origin;
       // Allow localhost (any port) + private network IPs for local dev
       try {
         const url = new URL(origin);
