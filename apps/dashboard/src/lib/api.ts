@@ -94,6 +94,9 @@ export interface Conversation {
   matchedKbId: string | null;
   similarityScore: number | null;
   wasHelpful: boolean | null;
+  agentResponse: string | null;
+  resolvedAt: string | null;
+  resolvedBy: string | null;
   createdAt: string;
 }
 
@@ -232,6 +235,19 @@ export const api = {
   },
   getConversationStats: (days?: number) =>
     apiClient<ConversationStats>(`/api/conversations/stats?days=${days || 7}`),
+
+  // Unresolved Conversations
+  listUnresolved: (params?: { page?: number; days?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.page) qs.set("page", String(params.page));
+    if (params?.days) qs.set("days", String(params.days));
+    return apiClient<PaginatedResponse<Conversation>>(`/api/conversations/unresolved?${qs}`);
+  },
+  resolveConversation: (id: string, agentResponse: string) =>
+    apiClient<{ data: Conversation }>(`/api/conversations/${id}/resolve`, {
+      method: "POST",
+      body: JSON.stringify({ agentResponse }),
+    }),
 
   // Collector
   syncCoupang: (syncType?: "full" | "incremental") =>

@@ -97,14 +97,14 @@ export function buildFallbackResponse(): KakaoSkillResponse {
     template: {
       outputs: [
         simpleText(
-          "죄송합니다, 해당 문의에 대한 정확한 답변을 찾지 못했습니다.\n상담사에게 직접 문의하시겠습니까?",
+          "해당 문의에 대한 답변을 바로 드리기 어렵습니다.\n상담원이 확인 후 톡으로 답변드리겠습니다.",
         ),
       ],
       quickReplies: [
         {
           action: "message",
-          label: "상담사 연결",
-          messageText: "상담사 연결",
+          label: "다른 질문하기",
+          messageText: "다른 질문하기",
         },
       ],
     },

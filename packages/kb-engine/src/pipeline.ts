@@ -102,4 +102,4 @@ export async function answerPipeline(
 }
 
 const FALLBACK_MESSAGE =
-  "죄송합니다, 현재 답변을 생성하지 못했습니다. 상담사에게 문의해주세요.";
+  "해당 문의에 대한 답변을 바로 드리기 어렵습니다. 상담원이 확인 후 톡으로 답변드리겠습니다.";

@@ -1,4 +1,4 @@
-import { eq, desc, sql, and, ilike, inArray, count } from "drizzle-orm";
+import { eq, desc, sql, and, ilike, inArray, count, isNull, gte } from "drizzle-orm";
 import {
   knowledgeItems,
   rawInquiries,
@@ -516,4 +516,72 @@ export async function updateConversationFeedback(
   }
 
   return conv;
+}
+
+// ── 미해결 문의 관리 ──
+
+/**
+ * 미해결(fallback) 대화 목록 — 상담사 미응답 건
+ */
+export async function listUnresolvedConversations(
+  db: Database,
+  filter: PaginationParams & { days?: number },
+) {
+  const page = filter.page ?? 1;
+  const limit = filter.limit ?? 50;
+  const offset = (page - 1) * limit;
+  const days = filter.days ?? 30;
+
+  const since = new Date();
+  since.setDate(since.getDate() - days);
+
+  const conditions = and(
+    eq(conversations.responseSource, "fallback"),
+    isNull(conversations.resolvedAt),
+    gte(conversations.createdAt, since),
+  );
+
+  const [items, [{ total }]] = await Promise.all([
+    db
+      .select()
+      .from(conversations)
+      .where(conditions)
+      .orderBy(desc(conversations.createdAt))
+      .limit(limit)
+      .offset(offset),
+    db
+      .select({ total: count() })
+      .from(conversations)
+      .where(conditions),
+  ]);
+
+  return {
+    data: items,
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+  };
+}
+
+/**
+ * 미해결 문의에 상담사 답변 저장
+ */
+export async function resolveConversation(
+  db: Database,
+  conversationId: string,
+  agentResponse: string,
+  resolvedBy?: string,
+) {
+  const [updated] = await db
+    .update(conversations)
+    .set({
+      agentResponse,
+      resolvedAt: new Date(),
+      resolvedBy: resolvedBy ?? "agent",
+    })
+    .where(eq(conversations.id, conversationId))
+    .returning();
+
+  return updated ?? null;
 }

@@ -31,6 +31,11 @@ export const conversations = pgTable(
     // 피드백
     wasHelpful: boolean("was_helpful"),
 
+    // 상담사 응답 (미해결 문의 관리)
+    agentResponse: text("agent_response"),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    resolvedBy: text("resolved_by"),
+
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

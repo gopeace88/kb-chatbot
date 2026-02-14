@@ -35,6 +35,9 @@ export {
   getLatestConversation,
   updateConversationFeedback,
   type CreateConversationInput,
+  // 미해결 문의
+  listUnresolvedConversations,
+  resolveConversation,
 } from "./crud.js";
 
 // Stats
