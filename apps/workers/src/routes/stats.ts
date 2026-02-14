@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../lib/env.js";
-import { getDashboardStats, getRAGStats, getTopQuestions } from "@kb-chatbot/kb-engine";
+import { getDashboardStats, getRAGStats, getTopQuestions, getUnansweredQuestions } from "@kb-chatbot/kb-engine";
 
 const stats = new Hono<AppEnv>();
 
@@ -25,6 +25,14 @@ stats.get("/top-questions", async (c) => {
   const days = Number(c.req.query("days") || "30");
   const limit = Number(c.req.query("limit") || "10");
   const result = await getTopQuestions(db, limit, days);
+  return c.json({ data: result });
+});
+
+// GET /api/stats/unanswered?days=30
+stats.get("/unanswered", async (c) => {
+  const db = c.get("db");
+  const days = Number(c.req.query("days") || "30");
+  const result = await getUnansweredQuestions(db, days);
   return c.json({ data: result });
 });
 

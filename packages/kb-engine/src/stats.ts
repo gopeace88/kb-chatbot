@@ -266,3 +266,44 @@ export async function getTopQuestions(
 
   return results;
 }
+
+export interface UnansweredQuestion {
+  userMessage: string;
+  count: number;
+  lastAsked: string;
+}
+
+/**
+ * 미답변(fallback) 질문 목록 — 빈도순
+ */
+export async function getUnansweredQuestions(
+  db: Database,
+  days: number = 30,
+  limit: number = 50,
+): Promise<UnansweredQuestion[]> {
+  const since = new Date();
+  since.setDate(since.getDate() - days);
+
+  const results = await db
+    .select({
+      userMessage: conversations.userMessage,
+      count: count(),
+      lastAsked: sql<string>`MAX(${conversations.createdAt})`,
+    })
+    .from(conversations)
+    .where(
+      and(
+        eq(conversations.responseSource, "fallback"),
+        gte(conversations.createdAt, since),
+      ),
+    )
+    .groupBy(conversations.userMessage)
+    .orderBy(sql`COUNT(*) DESC`)
+    .limit(limit);
+
+  return results.map((r) => ({
+    userMessage: r.userMessage,
+    count: r.count,
+    lastAsked: r.lastAsked,
+  }));
+}

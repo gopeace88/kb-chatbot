@@ -171,6 +171,12 @@ export interface BlockedTerm {
   createdAt: string;
 }
 
+export interface UnansweredQuestion {
+  userMessage: string;
+  count: number;
+  lastAsked: string;
+}
+
 // ── API 함수 ──
 
 export const api = {
@@ -261,6 +267,10 @@ export const api = {
   // Top Questions
   getTopQuestions: (days = 30, limit = 10) =>
     apiClient<{ data: TopQuestion[] }>(`/api/stats/top-questions?days=${days}&limit=${limit}`),
+
+  // Unanswered Questions
+  getUnansweredQuestions: (days = 30) =>
+    apiClient<{ data: UnansweredQuestion[] }>(`/api/stats/unanswered?days=${days}`),
 
   // Blocked Terms
   listBlockedTerms: () =>
