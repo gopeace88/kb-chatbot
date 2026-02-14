@@ -25,6 +25,11 @@ export interface Env {
   // 카카오싱크 (Phase 7)
   KAKAO_ADMIN_KEY: string;
   KAKAO_REST_API_KEY: string;
+
+  // Monitoring API keys
+  NEON_API_KEY: string;
+  CF_API_TOKEN: string;
+  CF_ACCOUNT_ID: string;
 }
 
 /** Hono 컨텍스트에 주입되는 변수 */
