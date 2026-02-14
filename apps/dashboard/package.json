@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "predev": "pkill -f 'next-server.*apps/dashboard' 2>/dev/null; exit 0",
+    "predev": "fuser -k 3000/tcp 2>/dev/null; exit 0",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
