@@ -107,7 +107,7 @@ function NeonTab({ days }: { days: number }) {
   if (!data) return null;
 
   const proj = data.project.project;
-  const periods = data.consumption.projects?.[0]?.periods ?? [];
+  const periods = data.consumption?.projects?.[0]?.periods ?? [];
   const consumption = periods.flatMap((p) => p.consumption);
 
   // Aggregate metrics from consumption data
@@ -190,7 +190,7 @@ function CFWorkersTab({ days }: { days: number }) {
   if (error) return <ErrorMessage message={error} onRetry={fetchData} />;
   if (!data) return null;
 
-  const groups = data.data?.viewer?.accounts?.[0]?.workersOverviewRequestsAdaptiveGroups ?? [];
+  const groups = data.data?.viewer?.accounts?.[0]?.workersInvocationsAdaptive ?? [];
 
   // Aggregate totals
   let totalRequests = 0;

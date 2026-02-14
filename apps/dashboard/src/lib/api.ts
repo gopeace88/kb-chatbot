@@ -203,7 +203,7 @@ export interface NeonMonitoringData {
       };
     };
   };
-  consumption: {
+  consumption: null | {
     projects: Array<{
       project_id: string;
       periods: Array<{
@@ -225,9 +225,10 @@ export interface CFWorkersData {
   data: {
     viewer: {
       accounts: Array<{
-        workersOverviewRequestsAdaptiveGroups: Array<{
+        workersInvocationsAdaptive: Array<{
           sum: { requests: number; errors: number; subrequests: number };
-          dimensions: { date: string; scriptName: string };
+          quantiles: { cpuTimeP50: number; cpuTimeP99: number };
+          dimensions: { date: string; scriptName: string; status: string };
         }>;
       }>;
     };

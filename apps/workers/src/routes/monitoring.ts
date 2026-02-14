@@ -18,7 +18,7 @@ async function cfGraphQL(token: string, query: string, variables: Record<string,
 }
 
 const NEON_PROJECT_ID = "red-heart-96250839";
-const CF_PAGES_PROJECT = "kb-chatbot-dashboard";
+const CF_PAGES_PROJECT = "kb-chatbot";
 const AI_GATEWAY_ID = "kb-chatbot";
 
 function clampDays(raw: string | undefined): number {
@@ -31,37 +31,47 @@ const monitoring = new Hono<AppEnv>();
 monitoring.get("/neon", async (c) => {
   const env = c.env;
   const days = clampDays(c.req.query("days"));
+  const neonHeaders = { Authorization: `Bearer ${env.NEON_API_KEY}` };
 
-  const to = new Date();
-  const from = new Date();
-  from.setDate(from.getDate() - days);
+  // 1. Fetch project details first (always works)
+  const projectRes = await fetch(
+    `https://console.neon.tech/api/v2/projects/${NEON_PROJECT_ID}`,
+    { headers: neonHeaders },
+  );
 
-  const [projectRes, consumptionRes] = await Promise.all([
-    fetch(`https://console.neon.tech/api/v2/projects/${NEON_PROJECT_ID}`, {
-      headers: { Authorization: `Bearer ${env.NEON_API_KEY}` },
-    }),
-    fetch(
+  if (!projectRes.ok) {
+    const errText = await projectRes.text();
+    return c.json({ error: "Neon API error", details: errText }, 502);
+  }
+
+  const project = await projectRes.json() as { project: { org_id?: string } };
+
+  // 2. Try consumption history (requires org_id for v2 endpoint)
+  let consumption = null;
+  const orgId = project.project.org_id;
+
+  if (orgId) {
+    const to = new Date();
+    const from = new Date();
+    from.setDate(from.getDate() - days);
+
+    const consumptionRes = await fetch(
       `https://console.neon.tech/api/v2/consumption_history/v2/projects?` +
         new URLSearchParams({
           from: from.toISOString(),
           to: to.toISOString(),
           granularity: "daily",
           project_ids: NEON_PROJECT_ID,
+          org_id: orgId,
           limit: "1",
         }),
-      { headers: { Authorization: `Bearer ${env.NEON_API_KEY}` } },
-    ),
-  ]);
+      { headers: neonHeaders },
+    );
 
-  if (!projectRes.ok || !consumptionRes.ok) {
-    const errText = !projectRes.ok
-      ? await projectRes.text()
-      : await consumptionRes.text();
-    return c.json({ error: "Neon API error", details: errText }, 502);
+    if (consumptionRes.ok) {
+      consumption = await consumptionRes.json();
+    }
   }
-
-  const project = await projectRes.json();
-  const consumption = await consumptionRes.json();
 
   return c.json({ project, consumption });
 });
@@ -75,16 +85,16 @@ monitoring.get("/cf-workers", async (c) => {
   const from = new Date();
   from.setDate(from.getDate() - days);
 
-  const query = `query ($accountTag: String!, $from: Date!, $to: Date!) {
+  const query = `query ($accountTag: String!, $from: String!, $to: String!) {
     viewer {
       accounts(filter: { accountTag: $accountTag }) {
-        workersOverviewRequestsAdaptiveGroups(
-          limit: 1000
-          filter: { date_geq: $from, date_leq: $to }
-          orderBy: [date_ASC]
+        workersInvocationsAdaptive(
+          limit: 10000
+          filter: { datetime_geq: $from, datetime_leq: $to }
         ) {
           sum { requests errors subrequests }
-          dimensions { date scriptName }
+          quantiles { cpuTimeP50 cpuTimeP99 }
+          dimensions { date: datetimeHour scriptName status }
         }
       }
     }
@@ -93,8 +103,8 @@ monitoring.get("/cf-workers", async (c) => {
   try {
     const data = await cfGraphQL(env.CF_API_TOKEN, query, {
       accountTag: env.CF_ACCOUNT_ID,
-      from: from.toISOString().split("T")[0],
-      to: to.toISOString().split("T")[0],
+      from: from.toISOString(),
+      to: to.toISOString(),
     });
     return c.json(data);
   } catch (e) {
@@ -130,14 +140,14 @@ monitoring.get("/cf-ai-gateway", async (c) => {
   const from = new Date();
   from.setDate(from.getDate() - days);
 
-  const query = `query ($accountTag: String!, $from: String!, $to: String!) {
+  const query = `{
     viewer {
-      accounts(filter: { accountTag: $accountTag }) {
+      accounts(filter: { accountTag: "${env.CF_ACCOUNT_ID}" }) {
         aiGatewayRequestsAdaptiveGroups(
           limit: 1000
           filter: {
-            datetime_geq: $from
-            datetime_leq: $to
+            datetimeHour_geq: "${from.toISOString()}"
+            datetimeHour_leq: "${to.toISOString()}"
             gateway: "${AI_GATEWAY_ID}"
           }
           orderBy: [datetimeHour_ASC]
@@ -163,11 +173,7 @@ monitoring.get("/cf-ai-gateway", async (c) => {
   }`;
 
   try {
-    const data = await cfGraphQL(env.CF_API_TOKEN, query, {
-      accountTag: env.CF_ACCOUNT_ID,
-      from: from.toISOString(),
-      to: to.toISOString(),
-    });
+    const data = await cfGraphQL(env.CF_API_TOKEN, query, {});
     return c.json(data);
   } catch (e) {
     return c.json({ error: "CF AI Gateway API error", details: String(e) }, 502);
