@@ -41,6 +41,7 @@ function ConversationsContent() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border text-left text-muted-foreground">
+                <th className="hidden px-4 py-3 font-medium lg:table-cell">사용자</th>
                 <th className="px-4 py-3 font-medium">사용자 메시지</th>
                 <th className="hidden px-4 py-3 font-medium md:table-cell">봇 응답</th>
                 <th className="px-4 py-3 font-medium">소스</th>
@@ -52,6 +53,14 @@ function ConversationsContent() {
             <tbody>
               {data?.data.map((conv) => (
                 <tr key={conv.id} className="border-b border-border last:border-0">
+                  <td className="hidden px-4 py-3 lg:table-cell">
+                    <Link
+                      href={`/customers/${conv.kakaoUserId}`}
+                      className="font-mono text-xs text-primary hover:underline"
+                    >
+                      {conv.kakaoUserId.slice(0, 10)}...
+                    </Link>
+                  </td>
                   <td className="px-4 py-3">
                     <div className="font-medium text-gray-900">
                       {truncate(conv.userMessage, 50)}
@@ -87,7 +96,7 @@ function ConversationsContent() {
               ))}
               {data?.data.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
+                  <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
                     대화 로그가 없습니다.
                   </td>
                 </tr>
