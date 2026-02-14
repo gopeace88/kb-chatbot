@@ -181,6 +181,110 @@ export interface UnansweredQuestion {
   lastAsked: string;
 }
 
+// ── Monitoring 타입 ──
+
+export interface NeonMonitoringData {
+  project: {
+    project: {
+      id: string;
+      name: string;
+      region_id: string;
+      pg_version: number;
+      compute_time_seconds: number;
+      active_time_seconds: number;
+      data_transfer_bytes: number;
+      written_data_bytes: number;
+      synthetic_storage_size: number;
+      compute_last_active_at: string;
+      consumption_period_start: string;
+      consumption_period_end: string;
+      owner: {
+        subscription_type: string;
+      };
+    };
+  };
+  consumption: {
+    projects: Array<{
+      project_id: string;
+      periods: Array<{
+        period_plan: string;
+        consumption: Array<{
+          timeframe_start: string;
+          timeframe_end: string;
+          metrics: Array<{
+            metric_name: string;
+            value: number;
+          }>;
+        }>;
+      }>;
+    }>;
+  };
+}
+
+export interface CFWorkersData {
+  data: {
+    viewer: {
+      accounts: Array<{
+        workersOverviewRequestsAdaptiveGroups: Array<{
+          sum: { requests: number; errors: number; subrequests: number };
+          dimensions: { date: string; scriptName: string };
+        }>;
+      }>;
+    };
+  };
+}
+
+export interface CFPagesData {
+  result: Array<{
+    id: string;
+    short_id: string;
+    project_name: string;
+    environment: string;
+    url: string;
+    latest_stage: {
+      name: string;
+      status: string;
+      started_on: string;
+      ended_on: string;
+    };
+    deployment_trigger: {
+      type: string;
+      metadata: {
+        branch: string;
+        commit_hash: string;
+        commit_message: string;
+      };
+    };
+    created_on: string;
+  }>;
+}
+
+export interface CFAIGatewayData {
+  data: {
+    viewer: {
+      accounts: Array<{
+        aiGatewayRequestsAdaptiveGroups: Array<{
+          count: number;
+          sum: {
+            cachedRequests: number;
+            erroredRequests: number;
+            cost: number;
+            cachedTokensIn: number;
+            cachedTokensOut: number;
+            uncachedTokensIn: number;
+            uncachedTokensOut: number;
+          };
+          dimensions: {
+            datetimeHour: string;
+            model: string;
+            provider: string;
+          };
+        }>;
+      }>;
+    };
+  };
+}
+
 // ── API 함수 ──
 
 export const api = {
@@ -296,4 +400,14 @@ export const api = {
     apiClient<BlockedTerm>("/api/blocked-terms", { method: "POST", body: JSON.stringify(data) }),
   deleteBlockedTerm: (id: string) =>
     apiClient<{ success: boolean }>(`/api/blocked-terms/${id}`, { method: "DELETE" }),
+
+  // Monitoring
+  getMonitoringNeon: (days = 7) =>
+    apiClient<NeonMonitoringData>(`/api/monitoring/neon?days=${days}`),
+  getMonitoringCFWorkers: (days = 7) =>
+    apiClient<CFWorkersData>(`/api/monitoring/cf-workers?days=${days}`),
+  getMonitoringCFPages: (limit = 20) =>
+    apiClient<CFPagesData>(`/api/monitoring/cf-pages?limit=${limit}`),
+  getMonitoringCFAIGateway: (days = 7) =>
+    apiClient<CFAIGatewayData>(`/api/monitoring/cf-ai-gateway?days=${days}`),
 };
