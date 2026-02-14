@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { api, type DashboardStats, type RAGStats, type TopQuestion } from "@/lib/api";
 import {
+  AlertTriangle,
   BookOpen,
   MessageSquare,
   MessagesSquare,
@@ -44,18 +46,29 @@ export default function DashboardHome() {
       value: stats ? `${stats.publishedKB} / ${stats.totalKB}` : "-",
       subtitle: "발행 / 전체",
       icon: BookOpen,
+      href: "/kb",
     },
     {
       title: "오늘 문의",
       value: stats?.todayInquiries ?? "-",
       subtitle: `신규 ${stats?.newInquiries ?? 0}건`,
       icon: MessageSquare,
+      href: "/inquiries",
     },
     {
       title: "오늘 대화",
       value: stats?.todayConversations ?? "-",
       subtitle: "카카오톡 대화",
       icon: MessagesSquare,
+      href: "/conversations",
+    },
+    {
+      title: "미해결 문의",
+      value: stats?.unresolvedCount ?? "-",
+      subtitle: "상담사 답변 대기",
+      icon: AlertTriangle,
+      href: "/conversations/unresolved",
+      highlight: (stats?.unresolvedCount ?? 0) > 0,
     },
     {
       title: "자동 답변률",
@@ -75,21 +88,29 @@ export default function DashboardHome() {
       )}
 
       {/* 기본 통계 카드 */}
-      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {cards.map((card) => (
-          <Card key={card.title}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                {card.title}
-              </CardTitle>
-              <card.icon className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent className="pt-0">
-              <div className="text-2xl font-bold">{card.value}</div>
-              <p className="text-xs text-muted-foreground">{card.subtitle}</p>
-            </CardContent>
-          </Card>
-        ))}
+      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        {cards.map((card) => {
+          const highlight = "highlight" in card && card.highlight;
+          const content = (
+            <Card className={`${card.href ? "cursor-pointer transition-shadow hover:shadow-md" : ""} ${highlight ? "border-destructive/50 bg-destructive/5" : ""}`}>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  {card.title}
+                </CardTitle>
+                <card.icon className={`h-4 w-4 ${highlight ? "text-destructive" : "text-muted-foreground"}`} />
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className={`text-2xl font-bold ${highlight ? "text-destructive" : ""}`}>{card.value}</div>
+                <p className="text-xs text-muted-foreground">{card.subtitle}</p>
+              </CardContent>
+            </Card>
+          );
+          return card.href ? (
+            <Link key={card.title} href={card.href}>{content}</Link>
+          ) : (
+            <div key={card.title}>{content}</div>
+          );
+        })}
       </div>
 
       {/* 기간 선택 + RAG 성능 섹션 */}

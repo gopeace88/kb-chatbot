@@ -5,7 +5,7 @@ import { chunkText } from "../processors/chunker.js";
 import { generateQAPairs, generateQAFromPages, analyzeImage } from "../ai/claude.js";
 import { embedText } from "../ai/openai.js";
 import { renderPdfPages } from "../processors/pdf-pages.js";
-import type { R2Config } from "../storage/r2.js";
+import { uploadImageToR2, type R2Config } from "../storage/r2.js";
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -203,6 +203,22 @@ export async function* runIngestPipeline(
         continue; // Can't proceed without images for PDF path
       }
 
+      // --- Upload page images to R2 (if configured) ---
+      const pageImageUrls = new Map<number, string>();
+      if (config.r2Config) {
+        const fileSlug = file.name.replace(/[^a-zA-Z0-9가-힣._-]/g, "_").replace(/\.[^.]+$/, "");
+        const batchId = randomUUID().slice(0, 8);
+        for (const [pageNum, buf] of pageBuffers.entries()) {
+          try {
+            const r2Key = `ingest/${fileSlug}-${batchId}/page-${pageNum}.png`;
+            const url = await uploadImageToR2(buf, r2Key, "image/png", config.r2Config);
+            pageImageUrls.set(pageNum, url);
+          } catch (err) {
+            yield { type: "error", data: { fileName: file.name, stage: "r2_upload", pageNum, message: String(err) } };
+          }
+        }
+      }
+
       // --- Generate Q&A from all pages at once ---
       yield {
         type: "qa_generating",
@@ -227,20 +243,26 @@ export async function* runIngestPipeline(
       }
 
       // --- Build candidates with image URLs ---
-      const candidates: QACandidate[] = qaPairs.map((qa) => ({
-        id: randomUUID(),
-        question: qa.question,
-        answer: qa.answer,
-        category: qa.category,
-        imageUrl: pageBuffers.has(qa.pageNumber)
-          ? `local://page/${qa.pageNumber}`
-          : pageBuffers.size > 0
-            ? `local://page/${pageBuffers.keys().next().value}`
-            : undefined,
-        chunkIndex: 0,
-        fileName: file.name,
-        isDuplicate: false,
-      }));
+      const candidates: QACandidate[] = qaPairs.map((qa) => {
+        // R2 URL 우선, 없으면 local:// 폴백
+        const r2Url = pageImageUrls.get(qa.pageNumber);
+        const fallbackR2 = pageImageUrls.size > 0
+          ? pageImageUrls.values().next().value
+          : undefined;
+
+        return {
+          id: randomUUID(),
+          question: qa.question,
+          answer: qa.answer,
+          category: qa.category,
+          imageUrl: r2Url
+            ?? fallbackR2
+            ?? (pageBuffers.has(qa.pageNumber) ? `local://page/${qa.pageNumber}` : undefined),
+          chunkIndex: 0,
+          fileName: file.name,
+          isDuplicate: false,
+        };
+      });
 
       yield {
         type: "qa_generated",
@@ -276,9 +298,22 @@ export async function* runIngestPipeline(
 
     yield { type: "text_extracted", data: { fileName: file.name, textLength: text.length } };
 
-    let imageFileBuffer: Buffer | undefined;
+    let imageFileUrl: string | undefined;
     if (IMAGE_MIME_TYPES.has(file.mimeType)) {
-      imageFileBuffer = file.buffer;
+      if (config.r2Config) {
+        try {
+          const fileSlug = file.name.replace(/[^a-zA-Z0-9가-힣._-]/g, "_").replace(/\.[^.]+$/, "");
+          const batchId = randomUUID().slice(0, 8);
+          const ext = file.mimeType.split("/")[1] || "png";
+          const r2Key = `ingest/${fileSlug}-${batchId}/original.${ext}`;
+          imageFileUrl = await uploadImageToR2(file.buffer, r2Key, file.mimeType, config.r2Config);
+        } catch (err) {
+          yield { type: "error", data: { fileName: file.name, stage: "r2_upload", message: String(err) } };
+        }
+      }
+      if (!imageFileUrl) {
+        imageFileUrl = "local://image/original";
+      }
     }
 
     const chunks = chunkText(text);
@@ -303,7 +338,7 @@ export async function* runIngestPipeline(
         question: qa.question,
         answer: qa.answer,
         category: qa.category,
-        imageUrl: imageFileBuffer ? "local://image/original" : undefined,
+        imageUrl: imageFileUrl,
         chunkIndex: chunk.index,
         fileName: file.name,
         isDuplicate: false,

@@ -13,6 +13,7 @@ export interface DashboardStats {
   newInquiries: number;
   todayConversations: number;
   autoAnswerRate: number;
+  unresolvedCount: number;
 }
 
 /**
@@ -29,6 +30,7 @@ export async function getDashboardStats(db: Database): Promise<DashboardStats> {
     [{ newInquiries }],
     [{ todayConversations }],
     [{ kbMatchCount }],
+    [{ unresolvedCount }],
   ] = await Promise.all([
     db.select({ totalKB: count() }).from(knowledgeItems),
     db
@@ -56,6 +58,15 @@ export async function getDashboardStats(db: Database): Promise<DashboardStats> {
           eq(conversations.responseSource, "kb_match"),
         ),
       ),
+    db
+      .select({ unresolvedCount: count() })
+      .from(conversations)
+      .where(
+        and(
+          eq(conversations.responseSource, "fallback"),
+          isNull(conversations.resolvedAt),
+        ),
+      ),
   ]);
 
   const autoAnswerRate =
@@ -68,6 +79,7 @@ export async function getDashboardStats(db: Database): Promise<DashboardStats> {
     newInquiries,
     todayConversations,
     autoAnswerRate: Math.round(autoAnswerRate * 100) / 100,
+    unresolvedCount,
   };
 }
 
