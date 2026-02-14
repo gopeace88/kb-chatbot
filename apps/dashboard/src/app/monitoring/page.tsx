@@ -243,25 +243,7 @@ function CFWorkersTab({ days }: { days: number }) {
             <CardTitle className="text-sm font-medium text-muted-foreground">스크립트별 요청</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
-              {Object.entries(scriptData)
-                .sort(([, a], [, b]) => b - a)
-                .map(([name, count]) => {
-                  const maxCount = Math.max(...Object.values(scriptData));
-                  const pct = maxCount > 0 ? Math.round((count / maxCount) * 100) : 0;
-                  return (
-                    <div key={name}>
-                      <div className="flex justify-between text-sm">
-                        <span className="font-mono">{name}</span>
-                        <span className="font-medium">{count.toLocaleString()}</span>
-                      </div>
-                      <div className="mt-1 h-2 w-full rounded-full bg-gray-100">
-                        <div className="h-2 rounded-full bg-blue-500" style={{ width: `${pct}%` }} />
-                      </div>
-                    </div>
-                  );
-                })}
-            </div>
+            <BarBreakdown data={scriptData} color="bg-blue-500" />
           </CardContent>
         </Card>
       )}
@@ -448,25 +430,7 @@ function CFAIGatewayTab({ days }: { days: number }) {
             <CardTitle className="text-sm font-medium text-muted-foreground">모델별 요청</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
-              {Object.entries(modelData)
-                .sort(([, a], [, b]) => b - a)
-                .map(([name, count]) => {
-                  const maxCount = Math.max(...Object.values(modelData));
-                  const pct = maxCount > 0 ? Math.round((count / maxCount) * 100) : 0;
-                  return (
-                    <div key={name}>
-                      <div className="flex justify-between text-sm">
-                        <span className="font-mono">{name}</span>
-                        <span className="font-medium">{count.toLocaleString()}</span>
-                      </div>
-                      <div className="mt-1 h-2 w-full rounded-full bg-gray-100">
-                        <div className="h-2 rounded-full bg-purple-500" style={{ width: `${pct}%` }} />
-                      </div>
-                    </div>
-                  );
-                })}
-            </div>
+            <BarBreakdown data={modelData} color="bg-purple-500" />
           </CardContent>
         </Card>
       )}
@@ -487,6 +451,29 @@ function MetricCard({ title, value, subtitle }: { title: string; value: string; 
         <p className="text-xs text-muted-foreground">{subtitle}</p>
       </CardContent>
     </Card>
+  );
+}
+
+function BarBreakdown({ data, color }: { data: Record<string, number>; color: string }) {
+  const entries = Object.entries(data).sort(([, a], [, b]) => b - a);
+  const maxCount = entries.length > 0 ? entries[0][1] : 0;
+  return (
+    <div className="space-y-2">
+      {entries.map(([name, count]) => {
+        const pct = maxCount > 0 ? Math.round((count / maxCount) * 100) : 0;
+        return (
+          <div key={name}>
+            <div className="flex justify-between text-sm">
+              <span className="font-mono">{name}</span>
+              <span className="font-medium">{count.toLocaleString()}</span>
+            </div>
+            <div className="mt-1 h-2 w-full rounded-full bg-gray-100">
+              <div className={`h-2 rounded-full ${color}`} style={{ width: `${pct}%` }} />
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 

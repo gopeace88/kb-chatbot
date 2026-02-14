@@ -17,19 +17,27 @@ async function cfGraphQL(token: string, query: string, variables: Record<string,
   return res.json();
 }
 
+const NEON_PROJECT_ID = "red-heart-96250839";
+const CF_PAGES_PROJECT = "kb-chatbot-dashboard";
+const AI_GATEWAY_ID = "kb-chatbot";
+
+function clampDays(raw: string | undefined): number {
+  return Math.min(Math.max(Number(raw) || 7, 1), 90);
+}
+
 const monitoring = new Hono<AppEnv>();
 
 // GET /api/monitoring/neon?days=7
 monitoring.get("/neon", async (c) => {
   const env = c.env;
-  const days = Number(c.req.query("days") || "7");
+  const days = clampDays(c.req.query("days"));
 
   const to = new Date();
   const from = new Date();
   from.setDate(from.getDate() - days);
 
   const [projectRes, consumptionRes] = await Promise.all([
-    fetch("https://console.neon.tech/api/v2/projects/red-heart-96250839", {
+    fetch(`https://console.neon.tech/api/v2/projects/${NEON_PROJECT_ID}`, {
       headers: { Authorization: `Bearer ${env.NEON_API_KEY}` },
     }),
     fetch(
@@ -38,7 +46,7 @@ monitoring.get("/neon", async (c) => {
           from: from.toISOString(),
           to: to.toISOString(),
           granularity: "daily",
-          project_ids: "red-heart-96250839",
+          project_ids: NEON_PROJECT_ID,
           limit: "1",
         }),
       { headers: { Authorization: `Bearer ${env.NEON_API_KEY}` } },
@@ -61,7 +69,7 @@ monitoring.get("/neon", async (c) => {
 // GET /api/monitoring/cf-workers?days=7
 monitoring.get("/cf-workers", async (c) => {
   const env = c.env;
-  const days = Number(c.req.query("days") || "7");
+  const days = clampDays(c.req.query("days"));
 
   const to = new Date();
   const from = new Date();
@@ -97,10 +105,10 @@ monitoring.get("/cf-workers", async (c) => {
 // GET /api/monitoring/cf-pages?limit=20
 monitoring.get("/cf-pages", async (c) => {
   const env = c.env;
-  const limit = Number(c.req.query("limit") || "20");
+  const limit = Math.min(Math.max(Number(c.req.query("limit")) || 20, 1), 50);
 
   const res = await fetch(
-    `https://api.cloudflare.com/client/v4/accounts/${env.CF_ACCOUNT_ID}/pages/projects/kb-chatbot-dashboard/deployments?per_page=${limit}`,
+    `https://api.cloudflare.com/client/v4/accounts/${env.CF_ACCOUNT_ID}/pages/projects/${CF_PAGES_PROJECT}/deployments?per_page=${limit}`,
     { headers: { Authorization: `Bearer ${env.CF_API_TOKEN}` } },
   );
 
@@ -116,7 +124,7 @@ monitoring.get("/cf-pages", async (c) => {
 // GET /api/monitoring/cf-ai-gateway?days=7
 monitoring.get("/cf-ai-gateway", async (c) => {
   const env = c.env;
-  const days = Number(c.req.query("days") || "7");
+  const days = clampDays(c.req.query("days"));
 
   const to = new Date();
   const from = new Date();
@@ -130,7 +138,7 @@ monitoring.get("/cf-ai-gateway", async (c) => {
           filter: {
             datetime_geq: $from
             datetime_leq: $to
-            gateway: "kb-chatbot"
+            gateway: "${AI_GATEWAY_ID}"
           }
           orderBy: [datetimeHour_ASC]
         ) {
