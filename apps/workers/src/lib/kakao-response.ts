@@ -45,21 +45,9 @@ export function buildAnswerResponse(
   const outputs: KakaoOutput[] = [];
 
   if (imageUrl) {
-    // basicCard with image thumbnail + truncated description
-    const description =
-      answerText.length > KAKAO_LIMITS.BASIC_CARD_MAX_LENGTH
-        ? answerText.slice(0, KAKAO_LIMITS.BASIC_CARD_MAX_LENGTH - 3) + "..."
-        : answerText;
-    outputs.push({
-      basicCard: {
-        thumbnail: { imageUrl },
-        description,
-      },
-    });
-    // Full answer as simpleText if it was truncated
-    if (answerText.length > KAKAO_LIMITS.BASIC_CARD_MAX_LENGTH) {
-      outputs.push(simpleText(answerText));
-    }
+    // simpleImage + simpleText 분리: 이미지 탭 시 카카오톡 전체 화면 뷰 지원
+    outputs.push({ simpleImage: { imageUrl, altText: "제품 이미지" } });
+    outputs.push(simpleText(answerText));
   } else {
     outputs.push(simpleText(answerText));
   }
