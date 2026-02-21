@@ -438,15 +438,28 @@ export async function createConversation(
 
 export async function listConversations(
   db: Database,
-  filter: PaginationParams & { kakaoUserId?: string },
+  filter: PaginationParams & { kakaoUserId?: string; search?: string },
 ) {
   const page = filter.page ?? 1;
   const limit = filter.limit ?? 50;
   const offset = (page - 1) * limit;
+  const search = filter.search?.trim() || undefined;
 
-  const userIdCondition = filter.kakaoUserId
-    ? sql`WHERE c.kakao_user_id = ${filter.kakaoUserId}`
-    : sql``;
+  const whereClause = filter.kakaoUserId
+    ? search
+      ? sql`WHERE c.kakao_user_id = ${filter.kakaoUserId} AND (c.kakao_user_id ILIKE ${'%' + search + '%'} OR cl.phone_number ILIKE ${'%' + search + '%'})`
+      : sql`WHERE c.kakao_user_id = ${filter.kakaoUserId}`
+    : search
+      ? sql`WHERE c.kakao_user_id ILIKE ${'%' + search + '%'} OR cl.phone_number ILIKE ${'%' + search + '%'}`
+      : sql``;
+
+  const countWhereClause = filter.kakaoUserId
+    ? search
+      ? sql`WHERE c.kakao_user_id = ${filter.kakaoUserId} AND (c.kakao_user_id ILIKE ${'%' + search + '%'} OR cl.phone_number ILIKE ${'%' + search + '%'})`
+      : sql`WHERE c.kakao_user_id = ${filter.kakaoUserId}`
+    : search
+      ? sql`WHERE c.kakao_user_id ILIKE ${'%' + search + '%'} OR cl.phone_number ILIKE ${'%' + search + '%'}`
+      : sql``;
 
   const [rows, countRows] = await Promise.all([
     db.execute(sql`
@@ -467,14 +480,15 @@ export async function listConversations(
         cl.cafe24_customer_id
       FROM conversations c
       LEFT JOIN customer_links cl ON c.kakao_user_id = cl.kakao_user_id
-      ${userIdCondition}
+      ${whereClause}
       ORDER BY c.created_at DESC
       LIMIT ${limit} OFFSET ${offset}
     `),
     db.execute(sql`
       SELECT COUNT(*)::int AS total
       FROM conversations c
-      ${userIdCondition}
+      LEFT JOIN customer_links cl ON c.kakao_user_id = cl.kakao_user_id
+      ${countWhereClause}
     `),
   ]);
 

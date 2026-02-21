@@ -9,7 +9,8 @@ customers.get("/", async (c) => {
   const db = c.get("db");
   const page = Number(c.req.query("page") || "1");
   const limit = Number(c.req.query("limit") || "20");
-  const result = await listAllCustomers(db, { page, limit });
+  const search = c.req.query("search") || undefined;
+  const result = await listAllCustomers(db, { page, limit, search });
   return c.json(result);
 });
 

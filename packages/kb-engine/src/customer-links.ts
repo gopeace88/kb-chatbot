@@ -74,11 +74,12 @@ export async function listCustomerLinks(
 
 export async function listAllCustomers(
   db: Database,
-  filter: { page?: number; limit?: number } = {},
+  filter: { page?: number; limit?: number; search?: string } = {},
 ): Promise<{ data: CustomerSummary[]; total: number }> {
   const page = filter.page ?? 1;
   const limit = filter.limit ?? 20;
   const offset = (page - 1) * limit;
+  const search = filter.search?.trim() || undefined;
 
   // conversations 테이블 기준으로 전체 사용자 조회 + customer_links LEFT JOIN
   const rows = await db.execute(sql`
@@ -90,13 +91,19 @@ export async function listAllCustomers(
       MAX(c.created_at) AS last_conversation_at
     FROM conversations c
     LEFT JOIN customer_links cl ON c.kakao_user_id = cl.kakao_user_id
+    ${search ? sql`WHERE c.kakao_user_id ILIKE ${'%' + search + '%'} OR cl.phone_number ILIKE ${'%' + search + '%'}` : sql``}
     GROUP BY c.kakao_user_id, cl.phone_number, cl.cafe24_customer_id
     ORDER BY MAX(c.created_at) DESC NULLS LAST
     LIMIT ${limit} OFFSET ${offset}
   `);
 
   const countRow = await db.execute(sql`
-    SELECT COUNT(DISTINCT kakao_user_id)::int AS total FROM conversations
+    SELECT COUNT(*)::int AS total FROM (
+      SELECT DISTINCT c.kakao_user_id
+      FROM conversations c
+      LEFT JOIN customer_links cl ON c.kakao_user_id = cl.kakao_user_id
+      ${search ? sql`WHERE c.kakao_user_id ILIKE ${'%' + search + '%'} OR cl.phone_number ILIKE ${'%' + search + '%'}` : sql``}
+    ) t
   `);
 
   const total = Number((countRow.rows[0] as { total: number }).total);

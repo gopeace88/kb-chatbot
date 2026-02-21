@@ -10,11 +10,13 @@ conversationsRoute.get("/", async (c) => {
   const page = Number(c.req.query("page") || "1");
   const limit = Number(c.req.query("limit") || "50");
   const kakaoUserId = c.req.query("kakaoUserId");
+  const search = c.req.query("search") || undefined;
 
   const result = await listConversations(db, {
     page,
     limit,
     kakaoUserId: kakaoUserId || undefined,
+    search,
   });
 
   return c.json(result);

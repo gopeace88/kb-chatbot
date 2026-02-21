@@ -27,14 +27,39 @@ function ConversationsContent() {
   const searchParams = useSearchParams();
   const [data, setData] = useState<PaginatedResponse<Conversation> | null>(null);
   const page = Number(searchParams.get("page") || "1");
+  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
 
   useEffect(() => {
-    api.listConversations({ page }).then(setData);
-  }, [page]);
+    api.listConversations({ page, search: search || undefined }).then(setData);
+  }, [page, search]);
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    setSearch(searchInput);
+  };
 
   return (
     <div>
       <h1 className="text-2xl font-bold text-gray-900">대화 로그</h1>
+
+      <form onSubmit={handleSearch} className="mt-4 flex gap-2">
+        <input
+          type="text"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          placeholder="카카오 ID 또는 전화번호로 검색..."
+          className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+        />
+        <button type="submit" className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+          검색
+        </button>
+        {search && (
+          <button type="button" onClick={() => { setSearch(""); setSearchInput(""); }} className="rounded-md border px-4 py-2 text-sm hover:bg-muted">
+            초기화
+          </button>
+        )}
+      </form>
 
       <Card className="mt-4">
         <CardContent className="p-0">

@@ -35,14 +35,21 @@ function CustomersContent() {
     null,
   );
   const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
 
   useEffect(() => {
     api.getCustomerStats().then(setStats).catch((e) => setError(e.message));
   }, []);
 
   useEffect(() => {
-    api.listCustomers({ page }).then(setData).catch((e) => setError(e.message));
-  }, [page]);
+    api.listCustomers({ page, search: search || undefined }).then(setData).catch((e) => setError(e.message));
+  }, [page, search]);
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    setSearch(searchInput);
+  };
 
   const statCards = [
     {
@@ -70,6 +77,24 @@ function CustomersContent() {
           데이터를 불러올 수 없습니다: {error}
         </p>
       )}
+
+      <form onSubmit={handleSearch} className="mt-4 flex gap-2">
+        <input
+          type="text"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          placeholder="카카오 ID 또는 전화번호로 검색..."
+          className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+        />
+        <button type="submit" className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+          검색
+        </button>
+        {search && (
+          <button type="button" onClick={() => { setSearch(""); setSearchInput(""); }} className="rounded-md border px-4 py-2 text-sm hover:bg-muted">
+            초기화
+          </button>
+        )}
+      </form>
 
       <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
         {statCards.map((card) => (

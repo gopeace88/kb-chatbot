@@ -344,10 +344,11 @@ export const api = {
     apiClient<KBItem>(`/api/inquiries/${id}/publish`, { method: "POST" }),
 
   // Conversations
-  listConversations: (params?: { page?: number; kakaoUserId?: string }) => {
+  listConversations: (params?: { page?: number; kakaoUserId?: string; search?: string }) => {
     const qs = new URLSearchParams();
     if (params?.page) qs.set("page", String(params.page));
     if (params?.kakaoUserId) qs.set("kakaoUserId", params.kakaoUserId);
+    if (params?.search) qs.set("search", params.search);
     return apiClient<PaginatedResponse<Conversation>>(`/api/conversations?${qs}`);
   },
   getConversationStats: (days?: number) =>
@@ -386,9 +387,10 @@ export const api = {
     apiClient<{ data: SyncLog[] }>(`/api/collector/logs?limit=${limit || 50}`),
 
   // Customers
-  listCustomers: (params?: { page?: number }) => {
+  listCustomers: (params?: { page?: number; search?: string }) => {
     const qs = new URLSearchParams();
     if (params?.page) qs.set("page", String(params.page));
+    if (params?.search) qs.set("search", params.search);
     return apiClient<PaginatedResponse<CustomerSummary>>(`/api/customers?${qs}`);
   },
   getCustomerStats: () => apiClient<CustomerStats>("/api/customers/stats"),
