@@ -3,6 +3,7 @@ import {
   knowledgeItems,
   rawInquiries,
   conversations,
+  customerLinks,
   type Database,
 } from "@kb-chatbot/database";
 import type {
@@ -443,27 +444,78 @@ export async function listConversations(
   const limit = filter.limit ?? 50;
   const offset = (page - 1) * limit;
 
-  const conditions = [];
-  if (filter.kakaoUserId) {
-    conditions.push(eq(conversations.kakaoUserId, filter.kakaoUserId));
-  }
+  const userIdCondition = filter.kakaoUserId
+    ? sql`WHERE c.kakao_user_id = ${filter.kakaoUserId}`
+    : sql``;
 
-  const whereClause =
-    conditions.length > 0 ? and(...conditions) : undefined;
-
-  const [items, [{ total }]] = await Promise.all([
-    db
-      .select()
-      .from(conversations)
-      .where(whereClause)
-      .orderBy(desc(conversations.createdAt))
-      .limit(limit)
-      .offset(offset),
-    db
-      .select({ total: count() })
-      .from(conversations)
-      .where(whereClause),
+  const [rows, countRows] = await Promise.all([
+    db.execute(sql`
+      SELECT
+        c.id,
+        c.kakao_user_id,
+        c.user_message,
+        c.bot_response,
+        c.response_source,
+        c.matched_kb_id,
+        c.similarity_score,
+        c.was_helpful,
+        c.agent_response,
+        c.resolved_at,
+        c.resolved_by,
+        c.created_at,
+        c.updated_at,
+        cl.phone_number,
+        cl.cafe24_customer_id
+      FROM conversations c
+      LEFT JOIN customer_links cl ON c.kakao_user_id = cl.kakao_user_id
+      ${userIdCondition}
+      ORDER BY c.created_at DESC
+      LIMIT ${limit} OFFSET ${offset}
+    `),
+    db.execute(sql`
+      SELECT COUNT(*)::int AS total
+      FROM conversations c
+      ${userIdCondition}
+    `),
   ]);
+
+  type ConvRow = {
+    id: string;
+    kakao_user_id: string;
+    user_message: string;
+    bot_response: string;
+    response_source: string;
+    matched_kb_id: string | null;
+    similarity_score: number | null;
+    was_helpful: boolean | null;
+    agent_response: string | null;
+    resolved_at: Date | null;
+    resolved_by: string | null;
+    created_at: Date;
+    updated_at: Date;
+    phone_number: string | null;
+    cafe24_customer_id: string | null;
+  };
+
+  const items = (rows as unknown as ConvRow[]).map((r) => ({
+    id: r.id,
+    kakaoUserId: r.kakao_user_id,
+    userMessage: r.user_message,
+    botResponse: r.bot_response,
+    responseSource: r.response_source as "kb_match" | "ai_generated" | "fallback",
+    matchedKbId: r.matched_kb_id,
+    similarityScore: r.similarity_score,
+    wasHelpful: r.was_helpful,
+    agentResponse: r.agent_response,
+    resolvedAt: r.resolved_at,
+    resolvedBy: r.resolved_by,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+    phoneNumber: r.phone_number,
+    cafe24CustomerId: r.cafe24_customer_id,
+  }));
+
+  const total = ((countRows as unknown as { total: number }[])[0]?.total) ?? 0;
 
   return {
     data: items,
@@ -535,25 +587,78 @@ export async function listUnresolvedConversations(
   const since = new Date();
   since.setDate(since.getDate() - days);
 
-  const conditions = and(
-    eq(conversations.responseSource, "fallback"),
-    isNull(conversations.resolvedAt),
-    gte(conversations.createdAt, since),
-  );
-
-  const [items, [{ total }]] = await Promise.all([
-    db
-      .select()
-      .from(conversations)
-      .where(conditions)
-      .orderBy(desc(conversations.createdAt))
-      .limit(limit)
-      .offset(offset),
-    db
-      .select({ total: count() })
-      .from(conversations)
-      .where(conditions),
+  const [rows, countRows] = await Promise.all([
+    db.execute(sql`
+      SELECT
+        c.id,
+        c.kakao_user_id,
+        c.user_message,
+        c.bot_response,
+        c.response_source,
+        c.matched_kb_id,
+        c.similarity_score,
+        c.was_helpful,
+        c.agent_response,
+        c.resolved_at,
+        c.resolved_by,
+        c.created_at,
+        c.updated_at,
+        cl.phone_number,
+        cl.cafe24_customer_id
+      FROM conversations c
+      LEFT JOIN customer_links cl ON c.kakao_user_id = cl.kakao_user_id
+      WHERE c.response_source = 'fallback'
+        AND c.resolved_at IS NULL
+        AND c.created_at >= ${since}
+      ORDER BY c.created_at DESC
+      LIMIT ${limit} OFFSET ${offset}
+    `),
+    db.execute(sql`
+      SELECT COUNT(*)::int AS total
+      FROM conversations c
+      WHERE c.response_source = 'fallback'
+        AND c.resolved_at IS NULL
+        AND c.created_at >= ${since}
+    `),
   ]);
+
+  type ConvRow = {
+    id: string;
+    kakao_user_id: string;
+    user_message: string;
+    bot_response: string;
+    response_source: string;
+    matched_kb_id: string | null;
+    similarity_score: number | null;
+    was_helpful: boolean | null;
+    agent_response: string | null;
+    resolved_at: Date | null;
+    resolved_by: string | null;
+    created_at: Date;
+    updated_at: Date;
+    phone_number: string | null;
+    cafe24_customer_id: string | null;
+  };
+
+  const items = (rows as unknown as ConvRow[]).map((r) => ({
+    id: r.id,
+    kakaoUserId: r.kakao_user_id,
+    userMessage: r.user_message,
+    botResponse: r.bot_response,
+    responseSource: r.response_source as "kb_match" | "ai_generated" | "fallback",
+    matchedKbId: r.matched_kb_id,
+    similarityScore: r.similarity_score,
+    wasHelpful: r.was_helpful,
+    agentResponse: r.agent_response,
+    resolvedAt: r.resolved_at,
+    resolvedBy: r.resolved_by,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+    phoneNumber: r.phone_number,
+    cafe24CustomerId: r.cafe24_customer_id,
+  }));
+
+  const total = ((countRows as unknown as { total: number }[])[0]?.total) ?? 0;
 
   return {
     data: items,
