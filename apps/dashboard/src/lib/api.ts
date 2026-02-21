@@ -133,6 +133,7 @@ export interface CustomerLink {
   linkedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  notes?: string | null;
 }
 
 export interface CustomerSummary {
@@ -393,6 +394,12 @@ export const api = {
   getCustomerStats: () => apiClient<CustomerStats>("/api/customers/stats"),
   getCustomer: (kakaoUserId: string) =>
     apiClient<CustomerLink>(`/api/customers/${encodeURIComponent(kakaoUserId)}`),
+  updateCustomerNotes: (kakaoUserId: string, notes: string) =>
+    apiClient<{ ok: boolean }>(`/api/customers/${encodeURIComponent(kakaoUserId)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ notes }),
+    }),
 
   // RAG Stats
   getRAGStats: (days = 7) =>

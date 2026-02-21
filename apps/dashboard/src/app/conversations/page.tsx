@@ -53,14 +53,15 @@ function ConversationsContent() {
             <tbody>
               {data?.data.map((conv) => (
                 <tr key={conv.id} className="border-b border-border last:border-0">
-                  <td className="hidden px-4 py-3 lg:table-cell">
+                  <td className="hidden px-4 py-3 lg:table-cell" style={{minWidth: '140px'}}>
                     <Link
                       href={`/customers/detail?id=${conv.kakaoUserId}`}
-                      className="font-mono text-xs text-primary hover:underline"
+                      className="text-xs text-primary hover:underline"
+                      title={conv.kakaoUserId}
                     >
                       {conv.phoneNumber
                         ? conv.phoneNumber.replace(/(\d{3})(\d{4})(\d{4})/, "$1-$2-$3")
-                        : `${conv.kakaoUserId.slice(0, 10)}...`}
+                        : conv.kakaoUserId.slice(0, 16) + "..."}
                     </Link>
                   </td>
                   <td className="px-4 py-3">

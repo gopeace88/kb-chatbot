@@ -112,8 +112,11 @@ function CustomersContent() {
                   className="cursor-pointer border-b border-border last:border-0 hover:bg-muted/50"
                   onClick={() => router.push(`/customers/detail?id=${encodeURIComponent(customer.kakaoUserId)}`)}
                 >
-                  <td className="px-4 py-3 font-mono text-xs">
-                    {customer.kakaoUserId.slice(0, 12)}...
+                  <td className="px-4 py-3 text-xs" title={customer.kakaoUserId}>
+                    {customer.phoneNumber
+                      ? customer.phoneNumber.replace(/(\d{3})(\d{4})(\d{4})/, "$1-$2-$3")
+                      : <span className="font-mono">{customer.kakaoUserId.slice(0, 16)}...</span>
+                    }
                   </td>
                   <td className="hidden px-4 py-3 sm:table-cell">
                     {customer.phoneNumber || "미등록"}

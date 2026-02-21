@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { api, type Conversation, type CustomerLink } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
-import { ArrowLeft, MessageSquare, Calendar, Loader2, Phone, User, Link2 } from "lucide-react";
+import { ArrowLeft, MessageSquare, Calendar, Loader2, Phone, User, Link2, StickyNote } from "lucide-react";
 
 const sourceBadge: Record<string, { label: string; variant: "success" | "default" | "destructive" }> = {
   kb_match: { label: "KB 매칭", variant: "success" },
@@ -22,12 +22,18 @@ function CustomerDetail() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
+  const [notes, setNotes] = useState("");
+  const [savingNotes, setSavingNotes] = useState(false);
+  const [notesSaved, setNotesSaved] = useState(false);
 
   useEffect(() => {
     if (!kakaoUserId) return;
     setLoading(true);
     Promise.all([
-      api.getCustomer(kakaoUserId).then(setCustomer).catch(() => {}),
+      api.getCustomer(kakaoUserId).then((c) => {
+        setCustomer(c);
+        setNotes(c?.notes || "");
+      }).catch(() => {}),
       api.listConversations({ kakaoUserId }).then((res) => {
         setConversations(res.data);
         setTotal(res.total);
@@ -36,6 +42,20 @@ function CustomerDetail() {
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [kakaoUserId]);
+
+  const handleSaveNotes = async () => {
+    setSavingNotes(true);
+    setNotesSaved(false);
+    try {
+      await api.updateCustomerNotes(kakaoUserId, notes);
+      setNotesSaved(true);
+      setTimeout(() => setNotesSaved(false), 3000);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSavingNotes(false);
+    }
+  };
 
   const firstDate = conversations.length > 0
     ? conversations[conversations.length - 1].createdAt
@@ -118,6 +138,31 @@ function CustomerDetail() {
                     </p>
                   </div>
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 비고란 */}
+          <Card>
+            <CardContent className="py-4">
+              <h2 className="mb-3 text-sm font-semibold text-gray-700">운영자 메모</h2>
+              <textarea
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                rows={3}
+                placeholder="상담 내용, 특이사항 등을 기록하세요..."
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+              />
+              <div className="mt-2 flex items-center gap-2">
+                <button
+                  onClick={handleSaveNotes}
+                  disabled={savingNotes}
+                  className="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                >
+                  {savingNotes ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                  저장
+                </button>
+                {notesSaved && <span className="text-xs text-green-600">저장되었습니다</span>}
               </div>
             </CardContent>
           </Card>
