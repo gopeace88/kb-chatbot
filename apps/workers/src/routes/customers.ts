@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../lib/env.js";
-import { listCustomerLinks, getCustomerStats } from "@kb-chatbot/kb-engine";
+import { listCustomerLinks, getCustomerStats, getCustomerLink } from "@kb-chatbot/kb-engine";
 
 const customers = new Hono<AppEnv>();
 
