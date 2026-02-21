@@ -152,7 +152,9 @@ export default function UnresolvedPage() {
                           className="flex items-center gap-1 font-mono text-primary hover:underline"
                         >
                           <User className="h-3 w-3" />
-                          {conv.kakaoUserId.slice(0, 10)}...
+                          {conv.phoneNumber
+                            ? conv.phoneNumber.replace(/(\d{3})(\d{4})(\d{4})/, "$1-$2-$3")
+                            : `${conv.kakaoUserId.slice(0, 10)}...`}
                         </Link>
                         <span>{formatDate(conv.createdAt)}</span>
                       </div>

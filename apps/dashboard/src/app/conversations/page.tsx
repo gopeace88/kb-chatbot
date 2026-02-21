@@ -58,7 +58,9 @@ function ConversationsContent() {
                       href={`/customers/detail?id=${conv.kakaoUserId}`}
                       className="font-mono text-xs text-primary hover:underline"
                     >
-                      {conv.kakaoUserId.slice(0, 10)}...
+                      {conv.phoneNumber
+                        ? conv.phoneNumber.replace(/(\d{3})(\d{4})(\d{4})/, "$1-$2-$3")
+                        : `${conv.kakaoUserId.slice(0, 10)}...`}
                     </Link>
                   </td>
                   <td className="px-4 py-3">
