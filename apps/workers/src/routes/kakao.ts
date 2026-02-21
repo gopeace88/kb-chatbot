@@ -475,4 +475,17 @@ function normalizePhoneNumber(raw: string): string {
   return phone;
 }
 
+/**
+ * 한국 휴대폰 번호 패턴 감지 및 정규화
+ * "010-1234-5678", "01012345678", "010 1234 5678" → "01012345678"
+ * 유효하지 않으면 null 반환
+ */
+function parsePhoneNumber(text: string): string | null {
+  const digits = text.replace(/[\-\s]/g, "").replace(/[^0-9]/g, "");
+  if (/^01[016789]\d{7,8}$/.test(digits)) {
+    return digits;
+  }
+  return null;
+}
+
 export { kakao };
