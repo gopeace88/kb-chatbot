@@ -10,6 +10,7 @@ import {
   MessageSquare,
   MessagesSquare,
   TrendingUp,
+  Users,
 } from "lucide-react";
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -28,6 +29,7 @@ export default function DashboardHome() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [rag, setRag] = useState<RAGStats | null>(null);
   const [topQuestions, setTopQuestions] = useState<TopQuestion[]>([]);
+  const [unanswered, setUnanswered] = useState<{ userMessage: string; count: number; lastAsked: string }[]>([]);
   const [period, setPeriod] = useState<number>(7);
   const [error, setError] = useState("");
 
@@ -38,6 +40,7 @@ export default function DashboardHome() {
   useEffect(() => {
     api.getRAGStats(period).then(setRag).catch(() => {});
     api.getTopQuestions(period).then((res) => setTopQuestions(res.data)).catch(() => {});
+    api.getUnansweredQuestions(period).then((res) => setUnanswered(res.data)).catch(() => {});
   }, [period]);
 
   const cards = [
@@ -76,6 +79,13 @@ export default function DashboardHome() {
       subtitle: "KB 매칭 기준",
       icon: TrendingUp,
     },
+    {
+      title: "총 고객",
+      value: stats?.totalCustomers ?? "-",
+      subtitle: "등록된 카카오 고객",
+      icon: Users,
+      href: "/customers",
+    },
   ];
 
   return (
@@ -88,7 +98,7 @@ export default function DashboardHome() {
       )}
 
       {/* 기본 통계 카드 */}
-      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         {cards.map((card) => {
           const highlight = "highlight" in card && card.highlight;
           const content = (
@@ -277,6 +287,47 @@ export default function DashboardHome() {
       )}
 
       {/* TOP 질문 섹션 */}
+      {/* 미답변 질문 섹션 */}
+      {unanswered.length > 0 && (
+        <div className="mt-8">
+          <h2 className="text-lg font-semibold text-gray-900">
+            미답변 질문 — KB 보강 추천 ({period}일)
+          </h2>
+          <p className="mt-1 text-sm text-gray-500">봇이 폴백으로 처리한 질문입니다. KB에 등록하면 다음부터 자동 답변됩니다.</p>
+          <Card className="mt-4">
+            <CardContent className="pt-6">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-left text-muted-foreground">
+                      <th className="pb-2 pr-4 font-medium">질문</th>
+                      <th className="pb-2 pr-4 text-right font-medium">횟수</th>
+                      <th className="pb-2 text-right font-medium">마지막</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {unanswered.slice(0, 10).map((q, idx) => (
+                      <tr key={idx} className="border-b last:border-0">
+                        <td className="py-2 pr-4">{q.userMessage}</td>
+                        <td className="py-2 pr-4 text-right font-medium text-destructive">{q.count}건</td>
+                        <td className="py-2 text-right text-muted-foreground text-xs">
+                          {new Date(q.lastAsked).toLocaleDateString("ko-KR")}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="mt-4 text-right">
+                <Link href="/conversations/unresolved" className="text-sm text-primary hover:underline">
+                  미해결 문의에서 직접 답변 →
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {topQuestions.length > 0 && (
         <div className="mt-8">
           <h2 className="text-lg font-semibold text-gray-900">

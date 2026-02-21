@@ -110,6 +110,7 @@ export interface DashboardStats {
   todayConversations: number;
   autoAnswerRate: number;
   unresolvedCount: number;
+  totalCustomers: number;
 }
 
 export interface ConversationStats {

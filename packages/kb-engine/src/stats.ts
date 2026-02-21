@@ -3,6 +3,7 @@ import {
   knowledgeItems,
   rawInquiries,
   conversations,
+  customerLinks,
   type Database,
 } from "@kb-chatbot/database";
 
@@ -14,6 +15,7 @@ export interface DashboardStats {
   todayConversations: number;
   autoAnswerRate: number;
   unresolvedCount: number;
+  totalCustomers: number;
 }
 
 /**
@@ -31,6 +33,7 @@ export async function getDashboardStats(db: Database): Promise<DashboardStats> {
     [{ todayConversations }],
     [{ kbMatchCount }],
     [{ unresolvedCount }],
+    [{ totalCustomers }],
   ] = await Promise.all([
     db.select({ totalKB: count() }).from(knowledgeItems),
     db
@@ -67,6 +70,7 @@ export async function getDashboardStats(db: Database): Promise<DashboardStats> {
           isNull(conversations.resolvedAt),
         ),
       ),
+    db.select({ totalCustomers: count() }).from(customerLinks),
   ]);
 
   const autoAnswerRate =
@@ -80,6 +84,7 @@ export async function getDashboardStats(db: Database): Promise<DashboardStats> {
     todayConversations,
     autoAnswerRate: Math.round(autoAnswerRate * 100) / 100,
     unresolvedCount,
+    totalCustomers,
   };
 }
 

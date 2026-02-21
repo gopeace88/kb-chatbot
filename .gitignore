@@ -29,6 +29,10 @@ Thumbs.db
 # Drizzle
 drizzle/meta/
 
+# Claude Code
+.claude/
+.agents/
+
 # Misc
 *.log
 coverage/
