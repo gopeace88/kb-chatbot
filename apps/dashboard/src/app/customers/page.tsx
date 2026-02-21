@@ -112,8 +112,8 @@ function CustomersContent() {
                   className="cursor-pointer border-b border-border last:border-0 hover:bg-muted/50"
                   onClick={() => router.push(`/customers/detail?id=${encodeURIComponent(customer.kakaoUserId)}`)}
                 >
-                  <td className="px-4 py-3 font-mono text-xs" title={customer.kakaoUserId}>
-                    {customer.kakaoUserId.slice(0, 12)}...
+                  <td className="w-40 max-w-[160px] px-4 py-3 font-mono text-xs" title={customer.kakaoUserId}>
+                    <span className="block truncate">{customer.kakaoUserId}</span>
                   </td>
                   <td className="hidden px-4 py-3 sm:table-cell">
                     {customer.phoneNumber
