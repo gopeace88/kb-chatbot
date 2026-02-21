@@ -381,6 +381,8 @@ export const api = {
     return apiClient<PaginatedResponse<CustomerLink>>(`/api/customers?${qs}`);
   },
   getCustomerStats: () => apiClient<CustomerStats>("/api/customers/stats"),
+  getCustomer: (kakaoUserId: string) =>
+    apiClient<CustomerLink>(`/api/customers/${encodeURIComponent(kakaoUserId)}`),
 
   // RAG Stats
   getRAGStats: (days = 7) =>
