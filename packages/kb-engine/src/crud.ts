@@ -463,7 +463,6 @@ export async function listConversations(
         c.resolved_at,
         c.resolved_by,
         c.created_at,
-        c.updated_at,
         cl.phone_number,
         cl.cafe24_customer_id
       FROM conversations c
@@ -492,12 +491,11 @@ export async function listConversations(
     resolved_at: Date | null;
     resolved_by: string | null;
     created_at: Date;
-    updated_at: Date;
     phone_number: string | null;
     cafe24_customer_id: string | null;
   };
 
-  const items = (rows as unknown as ConvRow[]).map((r) => ({
+  const items = (rows.rows as unknown as ConvRow[]).map((r) => ({
     id: r.id,
     kakaoUserId: r.kakao_user_id,
     userMessage: r.user_message,
@@ -510,12 +508,11 @@ export async function listConversations(
     resolvedAt: r.resolved_at,
     resolvedBy: r.resolved_by,
     createdAt: r.created_at,
-    updatedAt: r.updated_at,
     phoneNumber: r.phone_number,
     cafe24CustomerId: r.cafe24_customer_id,
   }));
 
-  const total = ((countRows as unknown as { total: number }[])[0]?.total) ?? 0;
+  const total = ((countRows.rows as unknown as { total: number }[])[0]?.total) ?? 0;
 
   return {
     data: items,
@@ -602,7 +599,6 @@ export async function listUnresolvedConversations(
         c.resolved_at,
         c.resolved_by,
         c.created_at,
-        c.updated_at,
         cl.phone_number,
         cl.cafe24_customer_id
       FROM conversations c
@@ -635,12 +631,11 @@ export async function listUnresolvedConversations(
     resolved_at: Date | null;
     resolved_by: string | null;
     created_at: Date;
-    updated_at: Date;
     phone_number: string | null;
     cafe24_customer_id: string | null;
   };
 
-  const items = (rows as unknown as ConvRow[]).map((r) => ({
+  const items = (rows.rows as unknown as ConvRow[]).map((r) => ({
     id: r.id,
     kakaoUserId: r.kakao_user_id,
     userMessage: r.user_message,
@@ -653,12 +648,11 @@ export async function listUnresolvedConversations(
     resolvedAt: r.resolved_at,
     resolvedBy: r.resolved_by,
     createdAt: r.created_at,
-    updatedAt: r.updated_at,
     phoneNumber: r.phone_number,
     cafe24CustomerId: r.cafe24_customer_id,
   }));
 
-  const total = ((countRows as unknown as { total: number }[])[0]?.total) ?? 0;
+  const total = ((countRows.rows as unknown as { total: number }[])[0]?.total) ?? 0;
 
   return {
     data: items,
