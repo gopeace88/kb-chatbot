@@ -18,6 +18,14 @@ export interface CustomerLink {
   updatedAt: Date;
 }
 
+export interface CustomerSummary {
+  kakaoUserId: string;
+  phoneNumber: string | null;
+  cafe24CustomerId: string | null;
+  conversationCount: number;
+  lastConversationAt: Date | null;
+}
+
 export async function getCustomerLink(
   db: Database,
   kakaoUserId: string,
@@ -61,6 +69,52 @@ export async function listCustomerLinks(
     limit,
     totalPages: Math.ceil(total / limit),
   };
+}
+
+export async function listAllCustomers(
+  db: Database,
+  filter: { page?: number; limit?: number } = {},
+): Promise<{ data: CustomerSummary[]; total: number }> {
+  const page = filter.page ?? 1;
+  const limit = filter.limit ?? 20;
+  const offset = (page - 1) * limit;
+
+  // conversations 테이블 기준으로 전체 사용자 조회 + customer_links LEFT JOIN
+  const rows = await db.execute(sql`
+    SELECT
+      c.kakao_user_id,
+      cl.phone_number,
+      cl.cafe24_customer_id,
+      COUNT(c.id)::int AS conversation_count,
+      MAX(c.created_at) AS last_conversation_at
+    FROM conversations c
+    LEFT JOIN customer_links cl ON c.kakao_user_id = cl.kakao_user_id
+    GROUP BY c.kakao_user_id, cl.phone_number, cl.cafe24_customer_id
+    ORDER BY MAX(c.created_at) DESC NULLS LAST
+    LIMIT ${limit} OFFSET ${offset}
+  `);
+
+  const countRow = await db.execute(sql`
+    SELECT COUNT(DISTINCT kakao_user_id)::int AS total FROM conversations
+  `);
+
+  const total = Number((countRow.rows[0] as { total: number }).total);
+
+  const data: CustomerSummary[] = (rows.rows as {
+    kakao_user_id: string;
+    phone_number: string | null;
+    cafe24_customer_id: string | null;
+    conversation_count: number;
+    last_conversation_at: string | null;
+  }[]).map((row) => ({
+    kakaoUserId: row.kakao_user_id,
+    phoneNumber: row.phone_number ?? null,
+    cafe24CustomerId: row.cafe24_customer_id ?? null,
+    conversationCount: row.conversation_count,
+    lastConversationAt: row.last_conversation_at ? new Date(row.last_conversation_at) : null,
+  }));
+
+  return { data, total };
 }
 
 export interface CustomerStats {

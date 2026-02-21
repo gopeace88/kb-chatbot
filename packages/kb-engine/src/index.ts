@@ -74,8 +74,10 @@ export {
   getCustomerLink,
   upsertCustomerLink,
   listCustomerLinks,
+  listAllCustomers,
   getCustomerStats,
   type CustomerLink,
+  type CustomerSummary,
   type CustomerStats,
   type ListCustomerLinksFilter,
 } from "./customer-links.js";
