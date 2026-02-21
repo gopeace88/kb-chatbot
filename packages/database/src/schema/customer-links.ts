@@ -1,6 +1,7 @@
 import {
   index,
   pgTable,
+  text,
   timestamp,
   uuid,
   varchar,
@@ -23,6 +24,9 @@ export const customerLinks = pgTable(
 
     // Cafe24 매칭 완료 시각
     linkedAt: timestamp("linked_at", { withTimezone: true }),
+
+    // 운영자 메모
+    notes: text("notes"),
 
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
