@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../lib/env.js";
-import { listAllCustomers, getCustomerStats, getCustomerLink, upsertCustomerLink } from "@kb-chatbot/kb-engine";
+import { listAllCustomers, getCustomerStats, getCustomerLink, upsertCustomerLink, addCustomerNote, listCustomerNotes } from "@kb-chatbot/kb-engine";
 
 const customers = new Hono<AppEnv>();
 
@@ -21,6 +21,24 @@ customers.get("/stats", async (c) => {
   return c.json(result);
 });
 
+// GET /api/customers/:kakaoUserId/notes — 메모 목록
+customers.get("/:kakaoUserId/notes", async (c) => {
+  const db = c.get("db");
+  const kakaoUserId = c.req.param("kakaoUserId");
+  const notes = await listCustomerNotes(db, kakaoUserId);
+  return c.json(notes);
+});
+
+// POST /api/customers/:kakaoUserId/notes — 메모 추가
+customers.post("/:kakaoUserId/notes", async (c) => {
+  const db = c.get("db");
+  const kakaoUserId = c.req.param("kakaoUserId");
+  const body = await c.req.json<{ content: string }>();
+  if (!body.content?.trim()) return c.json({ error: "content required" }, 400);
+  const note = await addCustomerNote(db, kakaoUserId, body.content.trim());
+  return c.json(note, 201);
+});
+
 // GET /api/customers/:kakaoUserId — 개별 고객 조회
 customers.get("/:kakaoUserId", async (c) => {
   const db = c.get("db");
@@ -28,15 +46,6 @@ customers.get("/:kakaoUserId", async (c) => {
   const customer = await getCustomerLink(db, kakaoUserId);
   if (!customer) return c.json({ error: "Customer not found" }, 404);
   return c.json(customer);
-});
-
-// PATCH /api/customers/:kakaoUserId — 고객 메모 업데이트
-customers.patch("/:kakaoUserId", async (c) => {
-  const db = c.get("db");
-  const kakaoUserId = c.req.param("kakaoUserId");
-  const body = await c.req.json<{ notes?: string }>();
-  await upsertCustomerLink(db, { kakaoUserId, notes: body.notes });
-  return c.json({ ok: true });
 });
 
 export { customers };

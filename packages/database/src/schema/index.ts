@@ -5,4 +5,5 @@ export * from "./collector-sync-logs";
 export * from "./customer-links";
 export * from "./cafe24-tokens";
 export * from "./blocked-terms";
+export * from "./customer-notes";
 export * from "./enums";

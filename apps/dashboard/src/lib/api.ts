@@ -124,6 +124,13 @@ export interface SyncResult {
   errors: string[];
 }
 
+export interface CustomerNote {
+  id: string;
+  kakaoUserId: string;
+  content: string;
+  createdAt: string;
+}
+
 export interface CustomerLink {
   id: string;
   kakaoUserId: string;
@@ -396,11 +403,13 @@ export const api = {
   getCustomerStats: () => apiClient<CustomerStats>("/api/customers/stats"),
   getCustomer: (kakaoUserId: string) =>
     apiClient<CustomerLink>(`/api/customers/${encodeURIComponent(kakaoUserId)}`),
-  updateCustomerNotes: (kakaoUserId: string, notes: string) =>
-    apiClient<{ ok: boolean }>(`/api/customers/${encodeURIComponent(kakaoUserId)}`, {
-      method: "PATCH",
+  listCustomerNotes: (kakaoUserId: string) =>
+    apiClient<CustomerNote[]>(`/api/customers/${encodeURIComponent(kakaoUserId)}/notes`),
+  addCustomerNote: (kakaoUserId: string, content: string) =>
+    apiClient<CustomerNote>(`/api/customers/${encodeURIComponent(kakaoUserId)}/notes`, {
+      method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ notes }),
+      body: JSON.stringify({ content }),
     }),
 
   // RAG Stats

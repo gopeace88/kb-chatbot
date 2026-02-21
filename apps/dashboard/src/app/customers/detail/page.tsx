@@ -5,9 +5,9 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { api, type Conversation, type CustomerLink } from "@/lib/api";
+import { api, type Conversation, type CustomerLink, type CustomerNote } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
-import { ArrowLeft, MessageSquare, Calendar, Loader2, Phone, User, Link2, StickyNote } from "lucide-react";
+import { ArrowLeft, MessageSquare, Calendar, Loader2, Phone, User, Link2 } from "lucide-react";
 
 const sourceBadge: Record<string, { label: string; variant: "success" | "default" | "destructive" }> = {
   kb_match: { label: "KB 매칭", variant: "success" },
@@ -22,38 +22,36 @@ function CustomerDetail() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
-  const [notes, setNotes] = useState("");
-  const [savingNotes, setSavingNotes] = useState(false);
-  const [notesSaved, setNotesSaved] = useState(false);
+  const [notes, setNotes] = useState<CustomerNote[]>([]);
+  const [newNote, setNewNote] = useState("");
+  const [savingNote, setSavingNote] = useState(false);
 
   useEffect(() => {
     if (!kakaoUserId) return;
     setLoading(true);
     Promise.all([
-      api.getCustomer(kakaoUserId).then((c) => {
-        setCustomer(c);
-        setNotes(c?.notes || "");
-      }).catch(() => {}),
+      api.getCustomer(kakaoUserId).then(setCustomer).catch(() => {}),
       api.listConversations({ kakaoUserId }).then((res) => {
         setConversations(res.data);
         setTotal(res.total);
       }),
+      api.listCustomerNotes(kakaoUserId).then(setNotes).catch(() => {}),
     ])
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [kakaoUserId]);
 
-  const handleSaveNotes = async () => {
-    setSavingNotes(true);
-    setNotesSaved(false);
+  const handleAddNote = async () => {
+    if (!newNote.trim()) return;
+    setSavingNote(true);
     try {
-      await api.updateCustomerNotes(kakaoUserId, notes);
-      setNotesSaved(true);
-      setTimeout(() => setNotesSaved(false), 3000);
+      const note = await api.addCustomerNote(kakaoUserId, newNote.trim());
+      setNotes((prev) => [note, ...prev]);
+      setNewNote("");
     } catch (e) {
       console.error(e);
     } finally {
-      setSavingNotes(false);
+      setSavingNote(false);
     }
   };
 
@@ -142,28 +140,42 @@ function CustomerDetail() {
             </CardContent>
           </Card>
 
-          {/* 비고란 */}
+          {/* 운영자 메모 이력 */}
           <Card>
             <CardContent className="py-4">
               <h2 className="mb-3 text-sm font-semibold text-gray-700">운영자 메모</h2>
-              <textarea
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                rows={3}
-                placeholder="상담 내용, 특이사항 등을 기록하세요..."
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-              />
-              <div className="mt-2 flex items-center gap-2">
+              {/* 새 메모 입력 */}
+              <div className="flex gap-2">
+                <textarea
+                  className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  rows={2}
+                  placeholder="메모 내용을 입력하세요..."
+                  value={newNote}
+                  onChange={(e) => setNewNote(e.target.value)}
+                />
                 <button
-                  onClick={handleSaveNotes}
-                  disabled={savingNotes}
-                  className="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                  onClick={handleAddNote}
+                  disabled={savingNote || !newNote.trim()}
+                  className="self-end inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
                 >
-                  {savingNotes ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                  {savingNote ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
                   저장
                 </button>
-                {notesSaved && <span className="text-xs text-green-600">저장되었습니다</span>}
               </div>
+              {/* 메모 이력 */}
+              {notes.length > 0 && (
+                <div className="mt-3 space-y-2">
+                  {notes.map((note) => (
+                    <div key={note.id} className="rounded-md bg-muted/50 px-3 py-2">
+                      <p className="text-xs text-muted-foreground">{formatDate(note.createdAt)}</p>
+                      <p className="mt-1 text-sm text-gray-900 whitespace-pre-wrap">{note.content}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {notes.length === 0 && (
+                <p className="mt-3 text-xs text-muted-foreground">아직 메모가 없습니다.</p>
+              )}
             </CardContent>
           </Card>
 

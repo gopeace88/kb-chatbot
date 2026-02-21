@@ -69,6 +69,9 @@ export {
   type InquiryToCreate,
 } from "./collector.js";
 
+// Customer Notes
+export { addCustomerNote, listCustomerNotes, type CustomerNote } from "./customer-notes.js";
+
 // Customer Links
 export {
   getCustomerLink,
