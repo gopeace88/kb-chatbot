@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../lib/env.js";
-import { listAllCustomers, getCustomerStats, getCustomerLink } from "@kb-chatbot/kb-engine";
+import { listAllCustomers, getCustomerStats, getCustomerLink, upsertCustomerLink } from "@kb-chatbot/kb-engine";
 
 const customers = new Hono<AppEnv>();
 
@@ -27,6 +27,15 @@ customers.get("/:kakaoUserId", async (c) => {
   const customer = await getCustomerLink(db, kakaoUserId);
   if (!customer) return c.json({ error: "Customer not found" }, 404);
   return c.json(customer);
+});
+
+// PATCH /api/customers/:kakaoUserId — 고객 메모 업데이트
+customers.patch("/:kakaoUserId", async (c) => {
+  const db = c.get("db");
+  const kakaoUserId = c.req.param("kakaoUserId");
+  const body = await c.req.json<{ notes?: string }>();
+  await upsertCustomerLink(db, { kakaoUserId, notes: body.notes });
+  return c.json({ ok: true });
 });
 
 export { customers };

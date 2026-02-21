@@ -14,6 +14,7 @@ export interface CustomerLink {
   cafe24CustomerId: string | null;
   cafe24MemberId: string | null;
   linkedAt: Date | null;
+  notes?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -156,6 +157,7 @@ export async function upsertCustomerLink(
     cafe24CustomerId?: string | null;
     cafe24MemberId?: string | null;
     linkedAt?: Date | null;
+    notes?: string | null;
   },
 ): Promise<CustomerLink> {
   const now = new Date();
@@ -165,6 +167,7 @@ export async function upsertCustomerLink(
   if (data.cafe24CustomerId !== undefined) updateSet.cafe24CustomerId = data.cafe24CustomerId;
   if (data.cafe24MemberId !== undefined) updateSet.cafe24MemberId = data.cafe24MemberId;
   if (data.linkedAt !== undefined) updateSet.linkedAt = data.linkedAt;
+  if (data.notes !== undefined) updateSet.notes = data.notes;
 
   const [row] = await db
     .insert(customerLinks)
@@ -174,6 +177,7 @@ export async function upsertCustomerLink(
       cafe24CustomerId: data.cafe24CustomerId ?? null,
       cafe24MemberId: data.cafe24MemberId ?? null,
       linkedAt: data.linkedAt ?? null,
+      notes: data.notes ?? null,
       createdAt: now,
       updatedAt: now,
     })
