@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
@@ -25,6 +26,7 @@ export default function CustomersPage() {
 }
 
 function CustomersContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const page = Number(searchParams.get("page") || "1");
 
@@ -104,7 +106,8 @@ function CustomersContent() {
               {data?.data.map((customer) => (
                 <tr
                   key={customer.id}
-                  className="border-b border-border last:border-0"
+                  className="cursor-pointer border-b border-border last:border-0 hover:bg-muted/50"
+                  onClick={() => router.push(`/customers/detail?id=${encodeURIComponent(customer.kakaoUserId)}`)}
                 >
                   <td className="px-4 py-3 font-mono text-xs">
                     {customer.kakaoUserId.slice(0, 12)}...
