@@ -59,10 +59,13 @@ function ConversationsContent() {
                       className="block truncate font-mono text-xs text-primary hover:underline"
                       title={conv.kakaoUserId}
                     >
-                      {conv.phoneNumber
-                        ? conv.phoneNumber.replace(/(\d{3})(\d{4})(\d{4})/, "$1-$2-$3")
-                        : conv.kakaoUserId}
+                      {conv.kakaoUserId}
                     </Link>
+                    {conv.phoneNumber && (
+                      <span className="block text-xs text-muted-foreground">
+                        {conv.phoneNumber.replace(/(\d{3})(\d{4})(\d{4})/, "$1-$2-$3")}
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <div className="font-medium text-gray-900">
