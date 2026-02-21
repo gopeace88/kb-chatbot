@@ -20,4 +20,13 @@ customers.get("/stats", async (c) => {
   return c.json(result);
 });
 
+// GET /api/customers/:kakaoUserId — 개별 고객 조회
+customers.get("/:kakaoUserId", async (c) => {
+  const db = c.get("db");
+  const kakaoUserId = c.req.param("kakaoUserId");
+  const customer = await getCustomerLink(db, kakaoUserId);
+  if (!customer) return c.json({ error: "Customer not found" }, 404);
+  return c.json(customer);
+});
+
 export { customers };
