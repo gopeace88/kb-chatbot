@@ -30,9 +30,10 @@ export function createApp(db: Database, openaiApiKey: string, port: number, r2Co
           if (url.hostname === "localhost" || url.hostname === "127.0.0.1") return origin;
           // Allow private network IPs (192.x, 10.x, 172.16-31.x)
           if (/^(192\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/.test(url.hostname)) return origin;
-          // Custom domain + CF Pages
+          // Custom domain + CF Pages + Vercel
           if (url.hostname.endsWith(".runvision.ai")) return origin;
           if (url.hostname.endsWith(".pages.dev") && url.hostname.includes("kb-chatbot")) return origin;
+          if (url.hostname.endsWith(".vercel.app")) return origin;
         } catch {}
         return undefined;
       },
