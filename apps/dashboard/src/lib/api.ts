@@ -98,6 +98,8 @@ export interface Conversation {
   resolvedAt: string | null;
   resolvedBy: string | null;
   createdAt: string;
+  phoneNumber?: string | null;
+  cafe24CustomerId?: string | null;
 }
 
 export interface DashboardStats {
@@ -131,6 +133,14 @@ export interface CustomerLink {
   linkedAt: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface CustomerSummary {
+  kakaoUserId: string;
+  phoneNumber: string | null;
+  cafe24CustomerId: string | null;
+  conversationCount: number;
+  lastConversationAt: string | null; // ISO string from API
 }
 
 export interface CustomerStats {
@@ -378,7 +388,7 @@ export const api = {
   listCustomers: (params?: { page?: number }) => {
     const qs = new URLSearchParams();
     if (params?.page) qs.set("page", String(params.page));
-    return apiClient<PaginatedResponse<CustomerLink>>(`/api/customers?${qs}`);
+    return apiClient<PaginatedResponse<CustomerSummary>>(`/api/customers?${qs}`);
   },
   getCustomerStats: () => apiClient<CustomerStats>("/api/customers/stats"),
   getCustomer: (kakaoUserId: string) =>

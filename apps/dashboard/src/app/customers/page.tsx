@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   api,
-  type CustomerLink,
+  type CustomerSummary,
   type CustomerStats,
   type PaginatedResponse,
 } from "@/lib/api";
@@ -31,7 +31,7 @@ function CustomersContent() {
   const page = Number(searchParams.get("page") || "1");
 
   const [stats, setStats] = useState<CustomerStats | null>(null);
-  const [data, setData] = useState<PaginatedResponse<CustomerLink> | null>(
+  const [data, setData] = useState<PaginatedResponse<CustomerSummary> | null>(
     null,
   );
   const [error, setError] = useState("");
@@ -98,14 +98,14 @@ function CustomersContent() {
                 </th>
                 <th className="px-4 py-3 font-medium">Cafe24 연결</th>
                 <th className="hidden px-4 py-3 font-medium lg:table-cell">
-                  등록일
+                  마지막 대화
                 </th>
               </tr>
             </thead>
             <tbody>
               {data?.data.map((customer) => (
                 <tr
-                  key={customer.id}
+                  key={customer.kakaoUserId}
                   className="cursor-pointer border-b border-border last:border-0 hover:bg-muted/50"
                   onClick={() => router.push(`/customers/detail?id=${encodeURIComponent(customer.kakaoUserId)}`)}
                 >
@@ -123,7 +123,7 @@ function CustomersContent() {
                     )}
                   </td>
                   <td className="hidden px-4 py-3 text-muted-foreground lg:table-cell">
-                    {formatDate(customer.createdAt)}
+                    {customer.lastConversationAt ? formatDate(customer.lastConversationAt) : "-"}
                   </td>
                 </tr>
               ))}
