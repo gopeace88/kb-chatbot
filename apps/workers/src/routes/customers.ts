@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../lib/env.js";
-import { listCustomerLinks, getCustomerStats, getCustomerLink } from "@kb-chatbot/kb-engine";
+import { listAllCustomers, getCustomerStats, getCustomerLink } from "@kb-chatbot/kb-engine";
 
 const customers = new Hono<AppEnv>();
 
@@ -9,7 +9,7 @@ customers.get("/", async (c) => {
   const db = c.get("db");
   const page = Number(c.req.query("page") || "1");
   const limit = Number(c.req.query("limit") || "20");
-  const result = await listCustomerLinks(db, { page, limit });
+  const result = await listAllCustomers(db, { page, limit });
   return c.json(result);
 });
 
