@@ -28,7 +28,7 @@ import {
 } from "../lib/kakao-response.js";
 import { Cafe24Client, getOrderStatusLabel } from "../lib/cafe24-client.js";
 import { DbTokenStore } from "../lib/cafe24-token-store.js";
-import { detectIntent } from "../lib/intent-detector.js";
+import { detectIntent, type Intent } from "../lib/intent-detector.js";
 
 const kakao = new Hono<AppEnv>();
 
@@ -98,7 +98,11 @@ kakao.post("/skill", async (c) => {
 
   const intent = detectIntent(utterance);
 
-  if (intent === "shipping_inquiry" || intent === "order_inquiry") {
+  // 전화번호 직접 수집 (카카오싱크 심사 없이)
+  const phoneResponse = await handlePhoneCollection(db, kakaoUserId, utterance, intent);
+  if (phoneResponse) return c.json(phoneResponse);
+
+  if (intent !== "general") {
     const orderResponse = await handleOrderIntent(c, db, kakaoUserId, utterance);
     if (orderResponse) {
       return c.json(orderResponse);
@@ -275,6 +279,65 @@ kakao.get("/sync/callback", async (c) => {
     return c.html("<h2>인증 처리 중 오류가 발생했습니다. 다시 시도해주세요.</h2>");
   }
 });
+
+/**
+ * 전화번호 직접 수집 핸들러 (카카오싱크 심사 없이)
+ *
+ * Case 1: 주문/배송 의도 + 전화번호 미등록 → 전화번호 요청 메시지 반환
+ * Case 2: utterance가 전화번호 패턴 + 미등록 → DB 저장 후 확인 메시지
+ */
+async function handlePhoneCollection(
+  db: Parameters<typeof getCustomerLink>[0],
+  kakaoUserId: string,
+  utterance: string,
+  intent: Intent,
+): Promise<object | null> {
+  // Case 1: 주문/배송 의도 + 전화번호 미등록
+  if (intent === "order_inquiry" || intent === "shipping_inquiry") {
+    const link = await getCustomerLink(db, kakaoUserId);
+    if (!link?.phoneNumber) {
+      return {
+        version: "2.0",
+        template: {
+          outputs: [
+            {
+              simpleText: {
+                text: "주문/배송 조회를 위해 구매 시 사용한 전화번호를 알려주세요.\n\n예) 01012345678",
+              },
+            },
+          ],
+        },
+      };
+    }
+  }
+
+  // Case 2: utterance가 전화번호 패턴 → 미등록 시 저장
+  const phone = parsePhoneNumber(utterance);
+  if (phone) {
+    const existing = await getCustomerLink(db, kakaoUserId);
+    if (!existing?.phoneNumber) {
+      await upsertCustomerLink(db, {
+        kakaoUserId,
+        phoneNumber: phone,
+      });
+      const formatted = phone.replace(/(\d{3})(\d{4})(\d{4})/, "$1-$2-$3");
+      return {
+        version: "2.0",
+        template: {
+          outputs: [
+            {
+              simpleText: {
+                text: `전화번호 ${formatted}가 등록되었습니다.\n카페24 쇼핑몰 연동 후 주문/배송 조회가 가능합니다.`,
+              },
+            },
+          ],
+        },
+      };
+    }
+  }
+
+  return null;
+}
 
 /**
  * 주문/배송 의도 처리
