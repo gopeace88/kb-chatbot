@@ -29,6 +29,9 @@ app.use(
       // CF Pages production + preview deployments
       if (origin === "https://kb-chatbot.pages.dev") return origin;
       if (origin.endsWith(".kb-chatbot.pages.dev")) return origin;
+      // Vercel dashboard deployments
+      if (origin === "https://kb-chatbot-dashboard.vercel.app") return origin;
+      if (origin.endsWith(".vercel.app")) return origin;
       // Allow localhost (any port) + private network IPs for local dev
       try {
         const url = new URL(origin);
