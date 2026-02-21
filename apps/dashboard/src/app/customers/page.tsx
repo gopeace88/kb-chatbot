@@ -97,6 +97,9 @@ function CustomersContent() {
                   전화번호
                 </th>
                 <th className="px-4 py-3 font-medium">Cafe24 연결</th>
+                <th className="hidden px-4 py-3 font-medium md:table-cell">
+                  대화수
+                </th>
                 <th className="hidden px-4 py-3 font-medium lg:table-cell">
                   마지막 대화
                 </th>
@@ -113,7 +116,7 @@ function CustomersContent() {
                     {customer.kakaoUserId.slice(0, 12)}...
                   </td>
                   <td className="hidden px-4 py-3 sm:table-cell">
-                    {customer.phoneNumber || "-"}
+                    {customer.phoneNumber || "미등록"}
                   </td>
                   <td className="px-4 py-3">
                     {customer.cafe24CustomerId ? (
@@ -121,6 +124,9 @@ function CustomersContent() {
                     ) : (
                       <Badge variant="muted">미연결</Badge>
                     )}
+                  </td>
+                  <td className="hidden px-4 py-3 text-center md:table-cell">
+                    {customer.conversationCount ?? 0}
                   </td>
                   <td className="hidden px-4 py-3 text-muted-foreground lg:table-cell">
                     {customer.lastConversationAt ? formatDate(customer.lastConversationAt) : "-"}
@@ -130,7 +136,7 @@ function CustomersContent() {
               {data?.data.length === 0 && (
                 <tr>
                   <td
-                    colSpan={4}
+                    colSpan={5}
                     className="px-4 py-8 text-center text-muted-foreground"
                   >
                     등록된 고객이 없습니다.
