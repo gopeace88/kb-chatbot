@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { api, type UnansweredQuestion } from "@/lib/api";
-import { AlertCircle, Plus, X, Loader2, CheckCircle2 } from "lucide-react";
+import { AlertCircle, Plus, X, Loader2, CheckCircle2, Trash2 } from "lucide-react";
 
 export default function UnansweredPage() {
   const [questions, setQuestions] = useState<UnansweredQuestion[]>([]);
@@ -11,6 +11,7 @@ export default function UnansweredPage() {
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
   const [formData, setFormData] = useState({ question: "", answer: "", category: "" });
   const [saving, setSaving] = useState(false);
+  const [deletingIdx, setDeletingIdx] = useState<number | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -35,6 +36,21 @@ export default function UnansweredPage() {
     }
     setExpandedIdx(idx);
     setFormData({ question, answer: "", category: "" });
+  };
+
+  const handleDelete = async (idx: number, userMessage: string) => {
+    if (!confirm("이 질문을 목록에서 삭제하시겠습니까?")) return;
+    setDeletingIdx(idx);
+    try {
+      await api.deleteUnansweredQuestion(userMessage);
+      setQuestions((prev) => prev.filter((_, i) => i !== idx));
+      if (expandedIdx === idx) setExpandedIdx(null);
+    } catch (e) {
+      console.error("Failed to delete:", e);
+      alert("삭제에 실패했습니다.");
+    } finally {
+      setDeletingIdx(null);
+    }
   };
 
   const handleSave = async () => {
@@ -121,26 +137,40 @@ export default function UnansweredPage() {
                       <span>마지막: {new Date(q.lastAsked).toLocaleDateString("ko-KR")}</span>
                     </div>
                   </div>
-                  <button
-                    onClick={() => handleExpand(idx, q.userMessage)}
-                    className={`flex items-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                      expandedIdx === idx
-                        ? "bg-gray-100 text-gray-700"
-                        : "bg-primary text-white hover:bg-primary/90"
-                    }`}
-                  >
-                    {expandedIdx === idx ? (
-                      <>
-                        <X className="h-4 w-4" />
-                        취소
-                      </>
-                    ) : (
-                      <>
-                        <Plus className="h-4 w-4" />
-                        KB 등록
-                      </>
-                    )}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleExpand(idx, q.userMessage)}
+                      className={`flex items-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                        expandedIdx === idx
+                          ? "bg-gray-100 text-gray-700"
+                          : "bg-primary text-white hover:bg-primary/90"
+                      }`}
+                    >
+                      {expandedIdx === idx ? (
+                        <>
+                          <X className="h-4 w-4" />
+                          취소
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="h-4 w-4" />
+                          KB 등록
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={() => handleDelete(idx, q.userMessage)}
+                      disabled={deletingIdx === idx}
+                      className="rounded p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-500 disabled:opacity-50"
+                      title="삭제"
+                    >
+                      {deletingIdx === idx ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
                 </div>
 
                 {expandedIdx === idx && (

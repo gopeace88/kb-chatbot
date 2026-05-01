@@ -5,6 +5,7 @@ import {
   listInquiries,
   getInquiry,
   answerInquiry,
+  deleteInquiry,
   refineAndCreateKB,
   publishKBItem,
 } from "@kb-chatbot/kb-engine";
@@ -33,6 +34,18 @@ inquiry.get("/:id", async (c) => {
   }
 
   return c.json(item);
+});
+
+// DELETE /api/inquiries/:id — 문의 삭제
+inquiry.delete("/:id", async (c) => {
+  const db = c.get("db");
+  const deleted = await deleteInquiry(db, c.req.param("id"));
+
+  if (!deleted) {
+    return c.json({ error: "Inquiry not found" }, 404);
+  }
+
+  return c.json({ success: true });
 });
 
 // PUT /api/inquiries/:id/answer — 수동 답변

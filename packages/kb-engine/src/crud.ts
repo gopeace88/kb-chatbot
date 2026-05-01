@@ -333,6 +333,15 @@ export async function getInquiry(db: Database, id: string) {
   return inquiry ?? null;
 }
 
+export async function deleteInquiry(db: Database, id: string): Promise<boolean> {
+  const result = await db
+    .delete(rawInquiries)
+    .where(eq(rawInquiries.id, id))
+    .returning({ id: rawInquiries.id });
+
+  return result.length > 0;
+}
+
 export async function answerInquiry(
   db: Database,
   id: string,
@@ -697,4 +706,21 @@ export async function resolveConversation(
     .returning();
 
   return updated ?? null;
+}
+
+export async function deleteFallbackConversations(
+  db: Database,
+  userMessage: string,
+): Promise<number> {
+  const result = await db
+    .delete(conversations)
+    .where(
+      and(
+        eq(conversations.userMessage, userMessage),
+        eq(conversations.responseSource, "fallback"),
+      ),
+    )
+    .returning({ id: conversations.id });
+
+  return result.length;
 }

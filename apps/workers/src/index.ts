@@ -1,7 +1,9 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
+import { sql } from "drizzle-orm";
 import type { AppEnv, Env } from "./lib/env.js";
+import { createDb } from "@kb-chatbot/database";
 import { dbMiddleware } from "./middleware/db.js";
 import { cfAccessAuth } from "./middleware/auth.js";
 import { kakao } from "./routes/kakao.js";
@@ -92,10 +94,19 @@ export default {
    * 매시간 실행: 쿠팡/네이버 문의 incremental sync
    */
   async scheduled(
-    _event: ScheduledEvent,
+    event: ScheduledEvent,
     env: Env,
     ctx: ExecutionContext,
   ): Promise<void> {
-    ctx.waitUntil(runScheduledSync(env));
+    if (event.cron === "*/3 * * * *") {
+      // DB keepalive — Neon 콜드스타트 방지
+      ctx.waitUntil(
+        createDb(env.DATABASE_URL)
+          .execute(sql`SELECT 1`)
+          .catch((e) => console.error("[Keepalive] DB ping failed:", e)),
+      );
+    } else {
+      ctx.waitUntil(runScheduledSync(env));
+    }
   },
 };

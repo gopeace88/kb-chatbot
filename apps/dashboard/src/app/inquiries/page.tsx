@@ -8,6 +8,7 @@ import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { api, type Inquiry, type PaginatedResponse } from "@/lib/api";
 import { formatDate, truncate } from "@/lib/utils";
+import { Trash2 } from "lucide-react";
 import Link from "next/link";
 
 const statusBadge: Record<string, { label: string; variant: "default" | "success" | "warning" | "muted" | "destructive" }> = {
@@ -40,6 +41,7 @@ function InquiriesContent() {
   const [data, setData] = useState<PaginatedResponse<Inquiry> | null>(null);
   const [channel, setChannel] = useState(searchParams.get("channel") || "");
   const [status, setStatus] = useState(searchParams.get("status") || "");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const page = Number(searchParams.get("page") || "1");
 
@@ -58,6 +60,22 @@ function InquiriesContent() {
     if (channel) qs.set("channel", channel);
     if (status) qs.set("status", status);
     router.push(`/inquiries?${qs}`);
+  }
+
+  async function handleDelete(e: React.MouseEvent, id: string) {
+    e.stopPropagation();
+    if (!confirm("이 문의를 삭제하시겠습니까?")) return;
+    setDeletingId(id);
+    try {
+      await api.deleteInquiry(id);
+      setData((prev) =>
+        prev ? { ...prev, data: prev.data.filter((i) => i.id !== id) } : prev,
+      );
+    } catch {
+      alert("삭제에 실패했습니다.");
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   return (
@@ -92,6 +110,7 @@ function InquiriesContent() {
                 <th className="hidden px-4 py-3 font-medium sm:table-cell">채널</th>
                 <th className="px-4 py-3 font-medium">상태</th>
                 <th className="hidden px-4 py-3 font-medium lg:table-cell">접수일</th>
+                <th className="px-4 py-3 font-medium w-10"></th>
               </tr>
             </thead>
             <tbody>
@@ -122,11 +141,20 @@ function InquiriesContent() {
                   <td className="hidden px-4 py-3 text-muted-foreground lg:table-cell">
                     {formatDate(item.receivedAt)}
                   </td>
+                  <td className="px-4 py-3">
+                    <button
+                      onClick={(e) => handleDelete(e, item.id)}
+                      disabled={deletingId === item.id}
+                      className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </td>
                 </tr>
               ))}
               {data?.data.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">
+                  <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
                     문의가 없습니다.
                   </td>
                 </tr>

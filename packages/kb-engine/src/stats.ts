@@ -25,6 +25,9 @@ export async function getDashboardStats(db: Database): Promise<DashboardStats> {
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
 
+  const since30d = new Date();
+  since30d.setDate(since30d.getDate() - 30);
+
   const [
     [{ totalKB }],
     [{ publishedKB }],
@@ -68,6 +71,7 @@ export async function getDashboardStats(db: Database): Promise<DashboardStats> {
         and(
           eq(conversations.responseSource, "fallback"),
           isNull(conversations.resolvedAt),
+          gte(conversations.createdAt, since30d),
         ),
       ),
     db.select({ totalCustomers: count() }).from(customerLinks),

@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../lib/env.js";
-import { getDashboardStats, getRAGStats, getTopQuestions, getUnansweredQuestions } from "@kb-chatbot/kb-engine";
+import { getDashboardStats, getRAGStats, getTopQuestions, getUnansweredQuestions, deleteFallbackConversations } from "@kb-chatbot/kb-engine";
 
 const stats = new Hono<AppEnv>();
 
@@ -34,6 +34,19 @@ stats.get("/unanswered", async (c) => {
   const days = Number(c.req.query("days") || "30");
   const result = await getUnansweredQuestions(db, days);
   return c.json({ data: result });
+});
+
+// DELETE /api/stats/unanswered — 미답변 질문 삭제 (해당 userMessage의 fallback 대화 삭제)
+stats.delete("/unanswered", async (c) => {
+  const db = c.get("db");
+  const body = await c.req.json<{ userMessage: string }>();
+
+  if (!body.userMessage?.trim()) {
+    return c.json({ error: "userMessage is required" }, 400);
+  }
+
+  const deleted = await deleteFallbackConversations(db, body.userMessage);
+  return c.json({ success: true, deleted });
 });
 
 export { stats };

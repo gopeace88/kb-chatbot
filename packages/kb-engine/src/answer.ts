@@ -39,6 +39,7 @@ export async function generateAnswer(
   question: string,
   kbResults: SearchResult[],
   apiKey: string,
+  signal?: AbortSignal,
 ): Promise<AnswerWithRef> {
   const messages: Array<{ role: string; content: string }> = [
     { role: "system", content: SYSTEM_PROMPT },
@@ -69,6 +70,7 @@ export async function generateAnswer(
       temperature: 0.3,
       response_format: { type: "json_object" },
     }),
+    signal,
   });
 
   if (!response.ok) {

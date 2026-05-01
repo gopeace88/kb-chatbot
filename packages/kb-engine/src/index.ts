@@ -26,6 +26,7 @@ export {
   listInquiries,
   getInquiry,
   answerInquiry,
+  deleteInquiry,
   refineAndCreateKB,
   type CreateInquiryInput,
   type ListInquiriesFilter,
@@ -38,6 +39,7 @@ export {
   // 미해결 문의
   listUnresolvedConversations,
   resolveConversation,
+  deleteFallbackConversations,
 } from "./crud.js";
 
 // Stats

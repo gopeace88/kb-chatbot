@@ -346,6 +346,8 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ answerText }),
     }),
+  deleteInquiry: (id: string) =>
+    apiClient<{ success: boolean }>(`/api/inquiries/${id}`, { method: "DELETE" }),
   refineInquiry: (id: string) =>
     apiClient<KBItem>(`/api/inquiries/${id}/refine`, { method: "POST" }),
   publishInquiry: (id: string) =>
@@ -424,6 +426,11 @@ export const api = {
   // Unanswered Questions
   getUnansweredQuestions: (days = 30) =>
     apiClient<{ data: UnansweredQuestion[] }>(`/api/stats/unanswered?days=${days}`),
+  deleteUnansweredQuestion: (userMessage: string) =>
+    apiClient<{ success: boolean; deleted: number }>("/api/stats/unanswered", {
+      method: "DELETE",
+      body: JSON.stringify({ userMessage }),
+    }),
 
   // Blocked Terms
   listBlockedTerms: () =>

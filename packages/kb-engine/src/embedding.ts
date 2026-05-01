@@ -4,6 +4,7 @@ const EMBEDDING_MODEL = "text-embedding-3-small";
 
 export interface EmbeddingOptions {
   baseUrl?: string;
+  signal?: AbortSignal;
 }
 
 interface EmbeddingResponse {
@@ -29,6 +30,7 @@ export async function generateEmbedding(
       model: EMBEDDING_MODEL,
       input: text,
     }),
+    signal: options?.signal,
   });
 
   if (!response.ok) {

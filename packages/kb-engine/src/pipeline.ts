@@ -1,6 +1,6 @@
 import type { Database } from "@kb-chatbot/database";
 import type { ResponseSource } from "@kb-chatbot/shared";
-import { VECTOR_SEARCH, KAKAO_LIMITS } from "@kb-chatbot/shared";
+import { VECTOR_SEARCH } from "@kb-chatbot/shared";
 import { generateEmbedding } from "./embedding.js";
 import { searchKnowledgeBase, type SearchResult } from "./search.js";
 import { generateAnswer } from "./answer.js";
@@ -17,7 +17,7 @@ export interface AnswerPipelineResult {
 interface PipelineConfig {
   db: Database;
   openaiApiKey: string;
-  /** 전체 파이프라인 타임아웃 (ms). 기본값: 4500 (카카오 5초 제한 대응) */
+  /** 전체 파이프라인 타임아웃 (ms). 기본값: 3800 (카카오 5초 제한 대응) */
   timeoutMs?: number;
 }
 
@@ -34,13 +34,15 @@ export async function answerPipeline(
   question: string,
   config: PipelineConfig,
 ): Promise<AnswerPipelineResult> {
-  const timeoutMs = config.timeoutMs ?? KAKAO_LIMITS.SKILL_TIMEOUT_MS;
+  const timeoutMs = config.timeoutMs ?? 3800;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     // 1. 임베딩 생성
-    const embedding = await generateEmbedding(question, config.openaiApiKey);
+    const embedding = await generateEmbedding(question, config.openaiApiKey, {
+      signal: controller.signal,
+    });
 
     // 2. KB 벡터 검색 (결과 없으면 임계값 없이 재검색)
     let kbResults = await searchKnowledgeBase(config.db, embedding);
@@ -72,6 +74,7 @@ export async function answerPipeline(
         question,
         kbResults,
         config.openaiApiKey,
+        controller.signal,
       );
       const topResult = kbResults.length > 0 ? kbResults[0] : null;
 

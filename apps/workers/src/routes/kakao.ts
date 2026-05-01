@@ -57,17 +57,9 @@ kakao.post("/skill", async (c) => {
 
   const db = c.get("db");
 
-  // ── 차단 용어 필터링 ──
-
-  const blocked = await checkBlockedTerms(db, utterance);
-  if (blocked) {
-    return c.json(buildBlockedResponse());
-  }
-
-  // ── 특수 명령어 처리 ──
+  // ── 특수 명령어 처리 (DB 불필요, 먼저 처리) ──
 
   if (utterance === "도움이 됐어요") {
-    // 가장 최근 대화의 피드백을 업데이트
     c.executionCtx.waitUntil(
       (async () => {
         try {
@@ -87,12 +79,15 @@ kakao.post("/skill", async (c) => {
     return c.json(buildAgentTransferResponse());
   }
 
-  // ── 속도 제한 체크 ──
+  // ── 차단 용어 + 속도 제한 병렬 체크 ──
 
-  const rateLimited = await checkRateLimit(db, kakaoUserId);
-  if (rateLimited) {
-    return c.json(buildRateLimitResponse());
-  }
+  const [blocked, rateLimited] = await Promise.all([
+    checkBlockedTerms(db, utterance),
+    checkRateLimit(db, kakaoUserId),
+  ]);
+
+  if (blocked) return c.json(buildBlockedResponse());
+  if (rateLimited) return c.json(buildRateLimitResponse());
 
   // ── 주문/배송 의도 감지 ──
 
@@ -110,26 +105,19 @@ kakao.post("/skill", async (c) => {
     // Cafe24 미설정 등으로 주문 조회 불가 → 일반 KB 파이프라인으로 fallthrough
   }
 
-  // ── 답변 파이프라인 실행 (일반 질문) ──
+  // ── 답변 파이프라인 + 인기 질문 병렬 실행 ──
 
-  const result = await answerPipeline(utterance, {
-    db,
-    openaiApiKey: c.env.OPENAI_API_KEY,
-  });
+  const [result, popularQuestions] = await Promise.all([
+    answerPipeline(utterance, {
+      db,
+      openaiApiKey: c.env.OPENAI_API_KEY,
+    }),
+    getPopularQuestions(db, 5).catch(() => [] as Array<{ question: string }>),
+  ]);
 
-  let response;
-  if (result.source === "fallback") {
-    response = buildFallbackResponse();
-  } else {
-    // 인기 질문 조회 (답변 성공 시에만)
-    let popularQuestions: Array<{ question: string }> = [];
-    try {
-      popularQuestions = await getPopularQuestions(db, 5);
-    } catch (err) {
-      console.error("Failed to fetch popular questions:", err);
-    }
-    response = buildAnswerResponse(result.answer, result.imageUrl, popularQuestions);
-  }
+  const response = result.source === "fallback"
+    ? buildFallbackResponse()
+    : buildAnswerResponse(result.answer, result.imageUrl, popularQuestions);
 
   // ── 비동기 저장 (응답 반환 후 — CF Workers waitUntil) ──
 
