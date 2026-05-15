@@ -210,8 +210,20 @@ export function buildBlockedResponse(): KakaoSkillResponse {
     template: {
       outputs: [
         simpleText(
-          "해당 문의는 처리할 수 없습니다. 제품 관련 문의를 해주세요.",
+          "욕설/비속어가 포함된 문의는 자동으로 처리할 수 없습니다.\n표현을 순화해서 다시 입력해 주세요. 상담이 필요하시면 상담사 연결을 눌러주세요.",
         ),
+      ],
+      quickReplies: [
+        {
+          action: "message",
+          label: "다른 질문하기",
+          messageText: "다른 질문하기",
+        },
+        {
+          action: "message",
+          label: "상담사 연결",
+          messageText: "상담사 연결",
+        },
       ],
     },
   };
