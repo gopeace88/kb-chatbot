@@ -78,10 +78,12 @@ kakao.post("/skill", async (c) => {
     return c.json(buildAgentTransferResponse());
   }
 
-  // ── 글로벌 안전망 1.8초 ──
-  // 카카오 실채널은 2초 안팎에서 스킬 오류/1:1 전환이 발생할 수 있어,
-  // 동기 응답은 1.8초 안에 반드시 종료한다.
-  const GLOBAL_TIMEOUT_MS = 1800;
+  // ── 글로벌 안전망 2.3초 ──
+  // NAS 이전 후 DB는 로컬(0~1ms)·skipAiGeneration로 GPT 없음 → 남은 지연은
+  // OpenAI 임베딩 호출(~0.7~1.5s, 변동)뿐. 동기 pipeline 800ms는 정상 임베딩을
+  // 다 잘라 kb_match를 전부 상담전환시켰음(역효과). 임베딩+검색을 허용하되
+  // 총응답을 ~2.3s 이내로 유지(카카오 실채널 허용 범위, 경험검증).
+  const GLOBAL_TIMEOUT_MS = 2300;
 
   const FALLBACK_BOT_TEXT =
     "해당 문의에 대한 답변을 바로 드리기 어렵습니다.\n상담원이 확인 후 톡으로 답변드리겠습니다.";
@@ -251,12 +253,12 @@ kakao.post("/skill", async (c) => {
   }
 
   // ── 동기 모드 (콜백 미승인): 1.8초 글로벌 타임아웃 ──
-  // exact match는 즉시 끝나고, 임베딩 검색은 0.8초까지만 보조로 사용한다.
-  // 늦으면 상담사 연결로 넘기고 야간 학습이 다음 exact match 후보로 흡수한다.
+  // exact match는 즉시 끝나고, 임베딩+검색은 1.8초까지 허용(정상 ~0.7~1.5s).
+  // 그래도 늦으면 상담사 연결로 넘기고 야간 학습이 다음 exact match 후보로 흡수한다.
   // runFlow가 먼저 끝나면 글로벌 타이머 취소 — 정상 응답 경로에 가짜 미해결 기록 방지
   let globalTimer: ReturnType<typeof setTimeout> | undefined;
   const response = await Promise.race([
-    runFlow(800, persistInteraction).finally(() => {
+    runFlow(1800, persistInteraction).finally(() => {
       if (globalTimer) clearTimeout(globalTimer);
     }),
     new Promise<ReturnType<typeof buildFallbackResponse>>((resolve) => {
