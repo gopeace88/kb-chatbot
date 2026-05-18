@@ -1,0 +1,11 @@
+node_modules
+**/node_modules
+.git
+apps/dashboard/out
+**/*.tsbuildinfo
+._*
+**/._*
+.env
+**/.env
+deploy/nas/.env
+kb-chatbot-backups
