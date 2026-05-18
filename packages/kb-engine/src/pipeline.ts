@@ -1,7 +1,7 @@
 import type { Database } from "@kb-chatbot/database";
 import type { ResponseSource } from "@kb-chatbot/shared";
 import { VECTOR_SEARCH } from "@kb-chatbot/shared";
-import { generateEmbedding } from "./embedding.js";
+import { cachedQueryEmbedding } from "./embedding-cache.js";
 import {
   findDirectQuestionMatch,
   searchKnowledgeBase,
@@ -62,9 +62,12 @@ export async function answerPipeline(
     }
 
     // 1. 임베딩 생성
-    const embedding = await generateEmbedding(question, config.openaiApiKey, {
-      signal: controller.signal,
-    });
+    const embedding = await cachedQueryEmbedding(
+      config.db,
+      question,
+      config.openaiApiKey,
+      { signal: controller.signal },
+    );
 
     // 2. KB 벡터 검색 (결과 없으면 임계값 없이 재검색)
     let kbResults = await searchKnowledgeBase(config.db, embedding);

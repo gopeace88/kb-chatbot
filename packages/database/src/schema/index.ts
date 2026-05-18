@@ -1,5 +1,6 @@
 export * from "./knowledge-items";
 export * from "./knowledge-question-variants";
+export * from "./query-embedding-cache";
 export * from "./variant-learning-logs";
 export * from "./raw-inquiries";
 export * from "./conversations";

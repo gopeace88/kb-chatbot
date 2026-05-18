@@ -1,5 +1,6 @@
 // Core functions
 export { generateEmbedding, generateEmbeddings, type EmbeddingOptions } from "./embedding.js";
+export { cachedQueryEmbedding } from "./embedding-cache.js";
 export {
   findDirectQuestionMatch,
   searchKnowledgeBase,
