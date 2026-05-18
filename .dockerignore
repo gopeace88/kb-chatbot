@@ -9,3 +9,6 @@ apps/dashboard/out
 **/.env
 deploy/nas/.env
 kb-chatbot-backups
+
+.env.local-api
+**/.env.local-api
