@@ -25,6 +25,8 @@ services:
       DATABASE_URL: ${DATABASE_URL}
       HOST: 0.0.0.0
       PORT: 3458
+    ports:
+      - "3458:3458"
     depends_on:
       postgres:
         condition: service_healthy
@@ -33,7 +35,7 @@ services:
   cloudflared:
     image: cloudflare/cloudflared:latest
     restart: unless-stopped
-    command: tunnel --no-autoupdate run --token ${TUNNEL_TOKEN}
+    command: tunnel --no-autoupdate --protocol http2 run --token ${TUNNEL_TOKEN}
     depends_on: [app]
     networks: [kbnet]
 
