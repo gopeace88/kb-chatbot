@@ -17,7 +17,7 @@
     "chalk": "^5.4.0",
     "commander": "^13.1.0",
     "dotenv": "^16.4.0",
-    "drizzle-orm": "^0.38.0",
+    "drizzle-orm": "^0.38.4",
     "hono": "^4.11.9",
     "pdf-parse": "^1.1.1",
     "pdfjs-dist": "^5.4.624"
