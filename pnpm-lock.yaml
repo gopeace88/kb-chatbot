@@ -92,7 +92,7 @@ importers:
         version: 16.6.1
       drizzle-orm:
         specifier: ^0.38.0
-        version: 0.38.4(@cloudflare/workers-types@4.20260212.0)(@neondatabase/serverless@0.10.4)(@types/pg@8.11.6)(@types/react@19.2.14)(react@19.2.4)
+        version: 0.38.4(@cloudflare/workers-types@4.20260212.0)(@neondatabase/serverless@0.10.4)(@types/pg@8.11.6)(@types/react@19.2.14)(postgres@3.4.9)(react@19.2.4)
       hono:
         specifier: ^4.11.9
         version: 4.11.9
@@ -115,6 +115,9 @@ importers:
 
   apps/workers:
     dependencies:
+      '@hono/node-server':
+        specifier: ^1.19.9
+        version: 1.19.9(hono@4.11.9)
       '@kb-chatbot/database':
         specifier: workspace:*
         version: link:../../packages/database
@@ -124,16 +127,28 @@ importers:
       '@kb-chatbot/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      aws4fetch:
+        specifier: ^1.0.20
+        version: 1.0.20
       drizzle-orm:
         specifier: ^0.38.4
-        version: 0.38.4(@cloudflare/workers-types@4.20260212.0)(@neondatabase/serverless@0.10.4)(@types/pg@8.11.6)(@types/react@19.2.14)(react@19.2.4)
+        version: 0.38.4(@cloudflare/workers-types@4.20260212.0)(@neondatabase/serverless@0.10.4)(@types/pg@8.11.6)(@types/react@19.2.14)(postgres@3.4.9)(react@19.2.4)
       hono:
         specifier: ^4.6.0
         version: 4.11.9
+      node-cron:
+        specifier: ^4.2.1
+        version: 4.2.1
     devDependencies:
       '@cloudflare/workers-types':
         specifier: ^4.20241205.0
         version: 4.20260212.0
+      '@types/node':
+        specifier: ^22.19.11
+        version: 22.19.11
+      '@types/node-cron':
+        specifier: ^3.0.11
+        version: 3.0.11
       typescript:
         specifier: ^5.7.0
         version: 5.9.3
@@ -148,7 +163,10 @@ importers:
         version: 0.10.4
       drizzle-orm:
         specifier: ^0.38.0
-        version: 0.38.4(@cloudflare/workers-types@4.20260212.0)(@neondatabase/serverless@0.10.4)(@types/pg@8.11.6)(@types/react@19.2.14)(react@19.2.4)
+        version: 0.38.4(@cloudflare/workers-types@4.20260212.0)(@neondatabase/serverless@0.10.4)(@types/pg@8.11.6)(@types/react@19.2.14)(postgres@3.4.9)(react@19.2.4)
+      postgres:
+        specifier: ^3.4.9
+        version: 3.4.9
     devDependencies:
       drizzle-kit:
         specifier: ^0.30.0
@@ -167,7 +185,7 @@ importers:
         version: link:../shared
       drizzle-orm:
         specifier: ^0.38.0
-        version: 0.38.4(@cloudflare/workers-types@4.20260212.0)(@neondatabase/serverless@0.10.4)(@types/pg@8.11.6)(@types/react@19.2.14)(react@19.2.4)
+        version: 0.38.4(@cloudflare/workers-types@4.20260212.0)(@neondatabase/serverless@0.10.4)(@types/pg@8.11.6)(@types/react@19.2.14)(postgres@3.4.9)(react@19.2.4)
     devDependencies:
       typescript:
         specifier: ^5.7.0
@@ -1726,6 +1744,9 @@ packages:
   '@tailwindcss/postcss@4.1.18':
     resolution: {integrity: sha512-Ce0GFnzAOuPyfV5SxjXGn0CubwGcuDB0zcdaPuCSzAa/2vII24JTkH+I6jcbXLb1ctjZMZZI6OjDaLPJQL1S0g==}
 
+  '@types/node-cron@3.0.11':
+    resolution: {integrity: sha512-0ikrnug3/IyneSHqCBeslAhlK2aBfYek1fGo4bP4QnZPmiqSGRK+Oy7ZMisLWkesffJvQ1cqAcBnJC+8+nxIAg==}
+
   '@types/node@22.19.11':
     resolution: {integrity: sha512-BH7YwL6rA93ReqeQS1c4bsPpcfOmJasG+Fkr6Y59q83f9M1WcBRHR2vM+P9eOisYRcN3ujQoiZY8uk5W+1WL8w==}
 
@@ -1754,6 +1775,9 @@ packages:
 
   as-table@1.0.55:
     resolution: {integrity: sha512-xvsWESUJn0JN421Xb9MQw6AsMHRCUknCe0Wjlxvjud80mU4E6hQf1A6NzQKcYNmYw62MfzEtXc+badstZP3JpQ==}
+
+  aws4fetch@1.0.20:
+    resolution: {integrity: sha512-/djoAN709iY65ETD6LKCtyyEI04XIBP5xVvfmNxsEP0uJB5tyaGBztSryRr4HqMStr9R06PisQE7m9zDTXKu6g==}
 
   blake3-wasm@2.1.5:
     resolution: {integrity: sha512-F1+K8EbfOZE49dtoPtmxUQrpXaBIl3ICvasLh+nJta0xkz+9kF/7uet9fLnwKqhDrmj6g+6K3Tw9yQPUg2ka5g==}
@@ -2138,6 +2162,10 @@ packages:
       sass:
         optional: true
 
+  node-cron@4.2.1:
+    resolution: {integrity: sha512-lgimEHPE/QDgFlywTd8yTR61ptugX3Qer29efeyWw2rv259HtGBNn1vZVmp8lB9uo9wC0t/AT4iGqXxia+CJFg==}
+    engines: {node: '>=6.0.0'}
+
   node-ensure@0.0.0:
     resolution: {integrity: sha512-DRI60hzo2oKN1ma0ckc6nQWlHU69RH6xN0sjQTjMpChPfTYvKZdcQFfdYK2RWbJcKyUizSIy/l8OTGxMAM1QDw==}
 
@@ -2208,6 +2236,10 @@ packages:
 
   postgres-range@1.1.4:
     resolution: {integrity: sha512-i/hbxIE9803Alj/6ytL7UHQxRvZkI9O4Sy+J3HGc4F4oo/2eQAjTSNJ0bfxyse3bH0nuVesCk+3IRLaMtG3H6w==}
+
+  postgres@3.4.9:
+    resolution: {integrity: sha512-GD3qdB0x1z9xgFI6cdRD6xu2Sp2WCOEoe3mtnyB5Ee0XrrL5Pe+e4CCnJrRMnL1zYtRDZmQQVbvOttLnKDLnaw==}
+    engines: {node: '>=12'}
 
   printable-characters@1.0.42:
     resolution: {integrity: sha512-dKp+C4iXWK4vVYZmYSd0KBH5F/h1HoZRsbJ82AVKRO3PEo8L4lBS/vLwhVtpwwuYcoIsVY+1JYKR268yn480uQ==}
@@ -3921,6 +3953,8 @@ snapshots:
       postcss: 8.5.6
       tailwindcss: 4.1.18
 
+  '@types/node-cron@3.0.11': {}
+
   '@types/node@22.19.11':
     dependencies:
       undici-types: 6.21.0
@@ -3950,6 +3984,8 @@ snapshots:
   as-table@1.0.55:
     dependencies:
       printable-characters: 1.0.42
+
+  aws4fetch@1.0.20: {}
 
   blake3-wasm@2.1.5: {}
 
@@ -4013,12 +4049,13 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  drizzle-orm@0.38.4(@cloudflare/workers-types@4.20260212.0)(@neondatabase/serverless@0.10.4)(@types/pg@8.11.6)(@types/react@19.2.14)(react@19.2.4):
+  drizzle-orm@0.38.4(@cloudflare/workers-types@4.20260212.0)(@neondatabase/serverless@0.10.4)(@types/pg@8.11.6)(@types/react@19.2.14)(postgres@3.4.9)(react@19.2.4):
     optionalDependencies:
       '@cloudflare/workers-types': 4.20260212.0
       '@neondatabase/serverless': 0.10.4
       '@types/pg': 8.11.6
       '@types/react': 19.2.14
+      postgres: 3.4.9
       react: 19.2.4
 
   enhanced-resolve@5.19.0:
@@ -4297,6 +4334,8 @@ snapshots:
       - '@babel/core'
       - babel-plugin-macros
 
+  node-cron@4.2.1: {}
+
   node-ensure@0.0.0: {}
 
   node-readable-to-web-readable-stream@0.4.2:
@@ -4360,6 +4399,8 @@ snapshots:
   postgres-interval@3.0.0: {}
 
   postgres-range@1.1.4: {}
+
+  postgres@3.4.9: {}
 
   printable-characters@1.0.42: {}
 

@@ -15,6 +15,21 @@ services:
       timeout: 5s
       retries: 10
 
+  app:
+    build:
+      context: ./repo/kb-chatbot
+      dockerfile: apps/workers/Dockerfile
+    restart: unless-stopped
+    env_file: [.env]
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      HOST: 0.0.0.0
+      PORT: 3458
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [kbnet]
+
 networks:
   kbnet:
     driver: bridge

@@ -1,3 +1,4 @@
+import { AwsClient } from "aws4fetch";
 import type { Env } from "./env.js";
 
 type KvValue = {
@@ -35,6 +36,36 @@ class MemoryKV {
   }
 }
 
+function makeR2Bucket(): R2Bucket {
+  const acct = process.env.R2_ACCOUNT_ID ?? "";
+  const bucket = process.env.R2_BUCKET ?? "kb-chatbot";
+  const client = new AwsClient({
+    accessKeyId: process.env.R2_ACCESS_KEY_ID ?? "",
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY ?? "",
+    service: "s3",
+    region: "auto",
+  });
+  const base = `https://${acct}.r2.cloudflarestorage.com/${bucket}`;
+  return {
+    put: async (
+      key: string,
+      value: ArrayBuffer,
+      opts?: { httpMetadata?: { contentType?: string } },
+    ) => {
+      const res = await client.fetch(`${base}/${key}`, {
+        method: "PUT",
+        body: value,
+        headers: opts?.httpMetadata?.contentType
+          ? { "content-type": opts.httpMetadata.contentType }
+          : undefined,
+      });
+      if (!res.ok)
+        throw new Error(`R2 put failed: ${res.status} ${await res.text()}`);
+      return undefined as unknown as R2Object;
+    },
+  } as unknown as R2Bucket;
+}
+
 function requiredEnv(name: keyof Env): string {
   const value = process.env[name];
   if (!value) throw new Error(`${name} is required`);
@@ -69,11 +100,7 @@ export function createLocalEnv(): Env {
     CF_API_TOKEN: optionalEnv("CF_API_TOKEN"),
     CF_ACCOUNT_ID: optionalEnv("CF_ACCOUNT_ID"),
 
-    IMAGES: {
-      put: async () => {
-        throw new Error("R2 upload is not configured in local API mode");
-      },
-    } as unknown as R2Bucket,
+    IMAGES: makeR2Bucket(),
 
     RATE_LIMIT: new MemoryKV() as unknown as KVNamespace,
     BLOCKED_TERMS_CACHE: new MemoryKV() as unknown as KVNamespace,

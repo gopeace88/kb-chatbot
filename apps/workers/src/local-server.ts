@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { serve } from "@hono/node-server";
 import { app } from "./index.js";
 import { createLocalEnv, createLocalExecutionContext } from "./lib/local-bindings.js";
+import { startScheduler } from "./lib/scheduler.js";
 
 function loadDotEnv(path: string, options?: { override?: boolean }): void {
   if (!existsSync(path)) return;
@@ -28,6 +29,7 @@ loadDotEnv(resolve(process.cwd(), "../../.env.local-api"), { override: true });
 loadDotEnv(resolve(process.cwd(), ".env.local-api"), { override: true });
 
 const env = createLocalEnv();
+startScheduler(env);
 const port = Number(process.env.PORT ?? "3458");
 const hostname = process.env.HOST ?? "127.0.0.1";
 
