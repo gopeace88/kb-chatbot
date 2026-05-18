@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${PGUSER}
+      POSTGRES_PASSWORD: ${PGPASSWORD}
+      POSTGRES_DB: kbchatbot
+    volumes:
+      - /volume1/Work/kb-chatbot/pgdata:/var/lib/postgresql/data
+    networks: [kbnet]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PGUSER} -d kbchatbot"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+networks:
+  kbnet:
+    driver: bridge

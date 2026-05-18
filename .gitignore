@@ -37,3 +37,6 @@ drizzle/meta/
 *.log
 coverage/
 ._*
+
+# NAS deploy secrets
+deploy/nas/.env
