@@ -36,3 +36,4 @@ drizzle/meta/
 # Misc
 *.log
 coverage/
+._*

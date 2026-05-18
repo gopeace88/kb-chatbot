@@ -16,6 +16,8 @@ import { cafe24OAuth } from "./routes/cafe24-oauth.js";
 import { customers } from "./routes/customers.js";
 import { blockedTermsRoute } from "./routes/blocked-terms.js";
 import { monitoring } from "./routes/monitoring.js";
+import { upload } from "./routes/upload.js";
+import { variantLearning } from "./routes/variant-learning.js";
 import { runScheduledSync } from "./lib/scheduled.js";
 
 const app = new Hono<AppEnv>();
@@ -63,6 +65,18 @@ app.get("/health", (c) => {
   return c.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
+// DB 핑 — Neon cold start 진단용 (인증 불필요)
+app.get("/db-ping", async (c) => {
+  const db = c.get("db");
+  const start = Date.now();
+  try {
+    await db.execute(sql`SELECT 1`);
+    return c.json({ ok: true, ms: Date.now() - start });
+  } catch (err) {
+    return c.json({ ok: false, ms: Date.now() - start, error: String(err) }, 500);
+  }
+});
+
 // 라우트
 app.route("/kakao", kakao);
 app.route("/api/kb", kb);
@@ -74,6 +88,8 @@ app.route("/api/cafe24/oauth", cafe24OAuth);
 app.route("/api/customers", customers);
 app.route("/api/blocked-terms", blockedTermsRoute);
 app.route("/api/monitoring", monitoring);
+app.route("/api/upload", upload);
+app.route("/api/variant-learning", variantLearning);
 
 // 404
 app.notFound((c) => {
@@ -98,7 +114,7 @@ export default {
     env: Env,
     ctx: ExecutionContext,
   ): Promise<void> {
-    if (event.cron === "*/3 * * * *") {
+    if (event.cron === "* * * * *") {
       // DB keepalive — Neon 콜드스타트 방지
       ctx.waitUntil(
         createDb(env.DATABASE_URL)
@@ -110,3 +126,5 @@ export default {
     }
   },
 };
+
+export { app };

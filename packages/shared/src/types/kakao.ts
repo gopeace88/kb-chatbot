@@ -11,6 +11,8 @@ export interface KakaoSkillRequest {
     timezone: string;
     utterance: string;
     lang: string;
+    /** 콜백 활성화된 블록에서만 전달되는 1회성 콜백 URL (유효 1분) */
+    callbackUrl?: string;
     user: {
       id: string;
       type: string;
@@ -64,7 +66,7 @@ export interface KakaoBasicCard {
 }
 
 export interface KakaoButton {
-  action: "webLink" | "message" | "phone" | "block";
+  action: "webLink" | "message" | "phone" | "block" | "operator";
   label: string;
   webLinkUrl?: string;
   messageText?: string;

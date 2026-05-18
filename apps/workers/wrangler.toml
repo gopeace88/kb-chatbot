@@ -10,4 +10,16 @@ routes = [
 enabled = true
 
 [triggers]
-crons = ["*/3 * * * *", "0 * * * *"]  # 3분 DB keepalive, 매시간 마켓플레이스 동기화
+crons = ["* * * * *", "0 * * * *"]  # 1분 DB keepalive, 매시간 마켓플레이스 동기화
+
+[[r2_buckets]]
+binding = "IMAGES"
+bucket_name = "kb-chatbot"
+
+[[kv_namespaces]]
+binding = "RATE_LIMIT"
+id = "e1ee825863dc49c9b0011fef7c5b0b23"
+
+[[kv_namespaces]]
+binding = "BLOCKED_TERMS_CACHE"
+id = "77a0da96e12c48cfb4c9d3ee9e086845"

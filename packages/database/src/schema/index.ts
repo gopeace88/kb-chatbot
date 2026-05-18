@@ -1,4 +1,6 @@
 export * from "./knowledge-items";
+export * from "./knowledge-question-variants";
+export * from "./variant-learning-logs";
 export * from "./raw-inquiries";
 export * from "./conversations";
 export * from "./collector-sync-logs";

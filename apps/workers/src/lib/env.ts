@@ -30,6 +30,13 @@ export interface Env {
   NEON_API_KEY: string;
   CF_API_TOKEN: string;
   CF_ACCOUNT_ID: string;
+
+  // R2 이미지 버킷
+  IMAGES: R2Bucket;
+
+  // KV — cold start 없이 빠른 조회
+  RATE_LIMIT: KVNamespace;
+  BLOCKED_TERMS_CACHE: KVNamespace;
 }
 
 /** Hono 컨텍스트에 주입되는 변수 */

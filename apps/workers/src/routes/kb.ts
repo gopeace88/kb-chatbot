@@ -8,6 +8,10 @@ import {
   updateKBItem,
   publishKBItem,
   archiveKBItem,
+  addQuestionVariant,
+  deleteQuestionVariant,
+  generateAndReplaceQuestionVariants,
+  listQuestionVariants,
 } from "@kb-chatbot/kb-engine";
 
 const kb = new Hono<AppEnv>();
@@ -30,6 +34,55 @@ kb.get("/", async (c) => {
   });
 
   return c.json(result);
+});
+
+// GET /api/kb/:id/variants — 검색용 유사질문 목록
+kb.get("/:id/variants", async (c) => {
+  const db = c.get("db");
+  const variants = await listQuestionVariants(db, c.req.param("id"));
+  return c.json({ data: variants });
+});
+
+// POST /api/kb/:id/variants — 검색용 유사질문 수동 추가
+kb.post("/:id/variants", async (c) => {
+  const db = c.get("db");
+  const body = await c.req.json<{ question: string }>();
+  if (!body.question?.trim()) {
+    return c.json({ error: "question is required" }, 400);
+  }
+
+  const variant = await addQuestionVariant(
+    db,
+    c.req.param("id"),
+    body.question,
+    c.env.OPENAI_API_KEY,
+  );
+
+  if (!variant) {
+    return c.json({ error: "Variant already exists or is empty" }, 409);
+  }
+
+  return c.json(variant, 201);
+});
+
+// POST /api/kb/:id/variants/generate — AI로 유사질문 재생성
+kb.post("/:id/variants/generate", async (c) => {
+  const db = c.get("db");
+  const variants = await generateAndReplaceQuestionVariants(
+    db,
+    c.req.param("id"),
+    c.env.OPENAI_API_KEY,
+  );
+
+  return c.json({ data: variants });
+});
+
+// DELETE /api/kb/:id/variants/:variantId — 검색용 유사질문 삭제
+kb.delete("/:id/variants/:variantId", async (c) => {
+  const db = c.get("db");
+  const deleted = await deleteQuestionVariant(db, c.req.param("variantId"));
+  if (!deleted) return c.json({ error: "Variant not found" }, 404);
+  return c.json({ success: true });
 });
 
 // GET /api/kb/:id — KB 상세

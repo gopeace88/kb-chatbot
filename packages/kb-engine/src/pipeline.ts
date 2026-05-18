@@ -2,7 +2,11 @@ import type { Database } from "@kb-chatbot/database";
 import type { ResponseSource } from "@kb-chatbot/shared";
 import { VECTOR_SEARCH } from "@kb-chatbot/shared";
 import { generateEmbedding } from "./embedding.js";
-import { searchKnowledgeBase, type SearchResult } from "./search.js";
+import {
+  findDirectQuestionMatch,
+  searchKnowledgeBase,
+  type SearchResult,
+} from "./search.js";
 import { generateAnswer } from "./answer.js";
 
 export interface AnswerPipelineResult {
@@ -19,6 +23,11 @@ interface PipelineConfig {
   openaiApiKey: string;
   /** 전체 파이프라인 타임아웃 (ms). 기본값: 3800 (카카오 5초 제한 대응) */
   timeoutMs?: number;
+  /**
+   * true면 KB 고유사도 매칭 실패 시 느린 LLM 답변 생성을 건너뛰고
+   * 즉시 fallback 반환 (카카오 동기 경로에서 LLM 미사용 → 타임아웃 벽 회피).
+   */
+  skipAiGeneration?: boolean;
 }
 
 /**
@@ -39,6 +48,19 @@ export async function answerPipeline(
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
+    // 0. 등록된 원질문/유사질문과 정확히 같으면 임베딩 호출 없이 즉시 반환
+    const directMatch = await findDirectQuestionMatch(config.db, question);
+    if (directMatch) {
+      return {
+        answer: directMatch.answer,
+        source: "kb_match",
+        matchedKbId: directMatch.id,
+        similarityScore: directMatch.similarity,
+        imageUrl: directMatch.imageUrl,
+        kbResults: [directMatch],
+      };
+    }
+
     // 1. 임베딩 생성
     const embedding = await generateEmbedding(question, config.openaiApiKey, {
       signal: controller.signal,
@@ -64,6 +86,18 @@ export async function answerPipeline(
         matchedKbId: kbResults[0].id,
         similarityScore: kbResults[0].similarity,
         imageUrl: kbResults[0].imageUrl,
+        kbResults,
+      };
+    }
+
+    // 3.5. LLM 생략 모드 → KB 미스 시 즉시 fallback (LLM 동기 호출 안 함)
+    if (config.skipAiGeneration) {
+      return {
+        answer: FALLBACK_MESSAGE,
+        source: "fallback",
+        matchedKbId: null,
+        similarityScore: kbResults.length > 0 ? kbResults[0].similarity : null,
+        imageUrl: null,
         kbResults,
       };
     }

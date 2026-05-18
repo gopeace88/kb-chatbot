@@ -14,6 +14,12 @@ import type {
 } from "@kb-chatbot/shared";
 import { generateEmbedding } from "./embedding.js";
 
+function executeResultRows<T>(result: unknown): T[] {
+  if (Array.isArray(result)) return result as T[];
+  const rows = (result as { rows?: unknown })?.rows;
+  return Array.isArray(rows) ? rows as T[] : [];
+}
+
 // ── Knowledge Items CRUD ──
 
 export interface CreateKBItemInput {
@@ -518,7 +524,7 @@ export async function listConversations(
     cafe24_customer_id: string | null;
   };
 
-  const items = (rows.rows as unknown as ConvRow[]).map((r) => ({
+  const items = executeResultRows<ConvRow>(rows).map((r) => ({
     id: r.id,
     kakaoUserId: r.kakao_user_id,
     userMessage: r.user_message,
@@ -535,7 +541,7 @@ export async function listConversations(
     cafe24CustomerId: r.cafe24_customer_id,
   }));
 
-  const total = ((countRows.rows as unknown as { total: number }[])[0]?.total) ?? 0;
+  const total = executeResultRows<{ total: number }>(countRows)[0]?.total ?? 0;
 
   return {
     data: items,
@@ -606,6 +612,7 @@ export async function listUnresolvedConversations(
 
   const since = new Date();
   since.setDate(since.getDate() - days);
+  const sinceIso = since.toISOString();
 
   const [rows, countRows] = await Promise.all([
     db.execute(sql`
@@ -628,7 +635,7 @@ export async function listUnresolvedConversations(
       LEFT JOIN customer_links cl ON c.kakao_user_id = cl.kakao_user_id
       WHERE c.response_source = 'fallback'
         AND c.resolved_at IS NULL
-        AND c.created_at >= ${since}
+        AND c.created_at >= ${sinceIso}
       ORDER BY c.created_at DESC
       LIMIT ${limit} OFFSET ${offset}
     `),
@@ -637,7 +644,7 @@ export async function listUnresolvedConversations(
       FROM conversations c
       WHERE c.response_source = 'fallback'
         AND c.resolved_at IS NULL
-        AND c.created_at >= ${since}
+        AND c.created_at >= ${sinceIso}
     `),
   ]);
 
@@ -658,7 +665,7 @@ export async function listUnresolvedConversations(
     cafe24_customer_id: string | null;
   };
 
-  const items = (rows.rows as unknown as ConvRow[]).map((r) => ({
+  const items = executeResultRows<ConvRow>(rows).map((r) => ({
     id: r.id,
     kakaoUserId: r.kakao_user_id,
     userMessage: r.user_message,
@@ -675,7 +682,7 @@ export async function listUnresolvedConversations(
     cafe24CustomerId: r.cafe24_customer_id,
   }));
 
-  const total = ((countRows.rows as unknown as { total: number }[])[0]?.total) ?? 0;
+  const total = executeResultRows<{ total: number }>(countRows)[0]?.total ?? 0;
 
   return {
     data: items,
@@ -706,6 +713,15 @@ export async function resolveConversation(
     .returning();
 
   return updated ?? null;
+}
+
+export async function deleteConversation(db: Database, id: string): Promise<boolean> {
+  const result = await db
+    .delete(conversations)
+    .where(eq(conversations.id, id))
+    .returning({ id: conversations.id });
+
+  return result.length > 0;
 }
 
 export async function deleteFallbackConversations(

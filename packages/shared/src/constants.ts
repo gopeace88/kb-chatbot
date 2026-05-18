@@ -37,7 +37,7 @@ export const DEFAULT_CATEGORIES = [
 /** 벡터 검색 설정 */
 export const VECTOR_SEARCH = {
   /** 직접 KB 매칭 임계값 (이 이상이면 KB 답변 직접 반환) */
-  SIMILARITY_THRESHOLD: 0.8,
+  SIMILARITY_THRESHOLD: 0.55,
   /** 검색 컨텍스트 임계값 (이 이상이면 AI 답변 컨텍스트로 활용) */
   CONTEXT_THRESHOLD: 0.1,
   /** 반환할 최대 결과 수 */

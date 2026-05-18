@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../lib/env.js";
-import { listConversations, getConversationStats, listUnresolvedConversations, resolveConversation } from "@kb-chatbot/kb-engine";
+import { listConversations, getConversationStats, listUnresolvedConversations, resolveConversation, deleteConversation } from "@kb-chatbot/kb-engine";
 
 const conversationsRoute = new Hono<AppEnv>();
 
@@ -57,6 +57,18 @@ conversationsRoute.post("/:id/resolve", async (c) => {
   }
 
   return c.json({ data: result });
+});
+
+// DELETE /api/conversations/:id — 대화 삭제
+conversationsRoute.delete("/:id", async (c) => {
+  const db = c.get("db");
+  const deleted = await deleteConversation(db, c.req.param("id"));
+
+  if (!deleted) {
+    return c.json({ error: "Conversation not found" }, 404);
+  }
+
+  return c.json({ success: true });
 });
 
 export { conversationsRoute };

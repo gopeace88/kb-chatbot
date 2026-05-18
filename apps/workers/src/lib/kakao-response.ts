@@ -5,6 +5,9 @@ import type {
 } from "@kb-chatbot/shared";
 import { KAKAO_LIMITS } from "@kb-chatbot/shared";
 
+const AGENT_TRANSFER_THUMBNAIL_URL =
+  "https://pub-27d0617b23e74b94af0239ab047e6ab4.r2.dev/kakao/runvision-agent-transfer-simple.png";
+
 /**
  * SimpleText 출력 생성
  */
@@ -34,6 +37,14 @@ function feedbackQuickReplies(): KakaoQuickReply[] {
   ];
 }
 
+function normalizeImageUrl(imageUrl: string): string {
+  try {
+    return encodeURI(imageUrl);
+  } catch {
+    return imageUrl;
+  }
+}
+
 /**
  * KB 매칭 또는 AI 생성 답변 응답
  */
@@ -46,7 +57,12 @@ export function buildAnswerResponse(
 
   if (imageUrl) {
     // simpleImage + simpleText 분리: 이미지 탭 시 카카오톡 전체 화면 뷰 지원
-    outputs.push({ simpleImage: { imageUrl, altText: "제품 이미지" } });
+    outputs.push({
+      simpleImage: {
+        imageUrl: normalizeImageUrl(imageUrl),
+        altText: "제품 이미지",
+      },
+    });
     outputs.push(simpleText(answerText));
   } else {
     outputs.push(simpleText(answerText));
@@ -117,15 +133,28 @@ export function buildFeedbackThanksResponse(): KakaoSkillResponse {
 
 /**
  * 상담사 연결 안내 응답
+ * operator 버튼: 카카오 채널 관리자센터 1:1 채팅으로 실제 전환됨
  */
 export function buildAgentTransferResponse(): KakaoSkillResponse {
   return {
     version: "2.0",
     template: {
       outputs: [
-        simpleText(
-          "상담사에게 연결해드리겠습니다. 잠시만 기다려주세요.\n운영시간: 평일 09:00~18:00",
-        ),
+        {
+          basicCard: {
+            description:
+              "상담사에게 연결해드리겠습니다.\n운영시간: 평일 09:00~18:00",
+            thumbnail: {
+              imageUrl: AGENT_TRANSFER_THUMBNAIL_URL,
+            },
+            buttons: [
+              {
+                action: "operator",
+                label: "상담사 연결",
+              },
+            ],
+          },
+        },
       ],
     },
   };

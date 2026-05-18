@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../lib/env.js";
-import type { KakaoSkillRequest } from "@kb-chatbot/shared";
+import type { KakaoSkillRequest, ResponseSource } from "@kb-chatbot/shared";
 import {
   answerPipeline,
   createConversation,
@@ -12,8 +12,7 @@ import {
   upsertCustomerLink,
   getPopularQuestions,
 } from "@kb-chatbot/kb-engine";
-import { conversations, blockedTerms } from "@kb-chatbot/database";
-import { and, gte, eq, count } from "drizzle-orm";
+import { blockedTerms } from "@kb-chatbot/database";
 import { kakaoSkillAuth } from "../middleware/kakao-auth.js";
 import {
   buildAnswerResponse,
@@ -79,79 +78,195 @@ kakao.post("/skill", async (c) => {
     return c.json(buildAgentTransferResponse());
   }
 
-  // ── 차단 용어 + 속도 제한 병렬 체크 ──
+  // ── 글로벌 안전망 1.8초 ──
+  // 카카오 실채널은 2초 안팎에서 스킬 오류/1:1 전환이 발생할 수 있어,
+  // 동기 응답은 1.8초 안에 반드시 종료한다.
+  const GLOBAL_TIMEOUT_MS = 1800;
 
-  const [blocked, rateLimited] = await Promise.all([
-    checkBlockedTerms(db, utterance),
-    checkRateLimit(db, kakaoUserId),
-  ]);
+  const FALLBACK_BOT_TEXT =
+    "해당 문의에 대한 답변을 바로 드리기 어렵습니다.\n상담원이 확인 후 톡으로 답변드리겠습니다.";
+  // KB 미스 → 상담연결 카드를 실제로 보냄. 저장 텍스트도 실제 발송 내용과 일치시킴.
+  const AGENT_TRANSFER_BOT_TEXT =
+    "상담사에게 연결해드리겠습니다.\n운영시간: 평일 09:00~18:00";
 
-  if (blocked) return c.json(buildBlockedResponse());
-  if (rateLimited) return c.json(buildRateLimitResponse());
+  type PersistOpts = {
+    answered: boolean;
+    matchedKbId?: string;
+    similarityScore?: number;
+    answeredBy?: "KB" | "AI";
+  };
 
-  // ── 주문/배송 의도 감지 ──
+  // ── 정확히 한 번만 저장 (성공/타임아웃/에러/콜백 경로 공유 latch) ──
+  let persisted = false;
+  const doPersist = async (
+    botResponse: string,
+    responseSource: ResponseSource,
+    opts: PersistOpts,
+  ): Promise<void> => {
+    if (persisted) return;
+    persisted = true;
+    try {
+      await createConversation(db, {
+        kakaoUserId,
+        userMessage: utterance,
+        botResponse,
+        responseSource,
+        matchedKbId: opts.matchedKbId ?? undefined,
+        similarityScore: opts.similarityScore ?? undefined,
+      });
 
-  const intent = detectIntent(utterance);
+      if (opts.matchedKbId) {
+        await incrementUsageCount(db, opts.matchedKbId);
+      }
 
-  // 전화번호 직접 수집 (카카오싱크 심사 없이)
-  const phoneResponse = await handlePhoneCollection(db, kakaoUserId, utterance, intent);
-  if (phoneResponse) return c.json(phoneResponse);
-
-  if (intent !== "general") {
-    const orderResponse = await handleOrderIntent(c, db, kakaoUserId, utterance);
-    if (orderResponse) {
-      return c.json(orderResponse);
+      await createInquiry(
+        db,
+        {
+          channel: "kakao",
+          questionText: utterance,
+          // 답변 성공 → answerText 저장(status: answered)
+          // fallback → answerText 생략(status: new = 운영자 미해결 큐)
+          answerText: opts.answered ? botResponse : undefined,
+          answeredBy: opts.answeredBy,
+        },
+        c.env.OPENAI_API_KEY,
+      );
+    } catch (err) {
+      console.error("Failed to save conversation/inquiry:", err);
     }
-    // Cafe24 미설정 등으로 주문 조회 불가 → 일반 KB 파이프라인으로 fallthrough
+  };
+  // 동기 경로: 응답 반환 전 waitUntil 등록
+  const persistInteraction = (
+    botResponse: string,
+    responseSource: ResponseSource,
+    opts: PersistOpts,
+  ) => {
+    c.executionCtx.waitUntil(doPersist(botResponse, responseSource, opts));
+  };
+
+  const runFlow = async (
+    pipelineTimeoutMs: number,
+    persist: (
+      botResponse: string,
+      responseSource: ResponseSource,
+      opts: PersistOpts,
+    ) => void,
+  ) => {
+    try {
+      // ── 차단 용어(KV) + 속도 제한(KV) 병렬 체크 — DB 미사용, cold start 없음 ──
+      const [blocked, rateLimited] = await Promise.all([
+        checkBlockedTerms(c.env.BLOCKED_TERMS_CACHE, db, utterance),
+        checkRateLimit(c.env.RATE_LIMIT, kakaoUserId),
+      ]);
+
+      if (blocked) return buildBlockedResponse();
+      if (rateLimited) return buildRateLimitResponse();
+
+      // ── 주문/배송 의도 감지 ──
+      const intent = detectIntent(utterance);
+
+      const phoneResponse = await handlePhoneCollection(db, kakaoUserId, utterance, intent);
+      if (phoneResponse) return phoneResponse as ReturnType<typeof buildFallbackResponse>;
+
+      if (intent !== "general") {
+        const orderResponse = await handleOrderIntent(c, db, kakaoUserId, utterance);
+        if (orderResponse) return orderResponse;
+      }
+
+      // ── 답변 파이프라인 실행 (타임아웃 모드별 주입: 동기 3800ms / 콜백 15000ms) ──
+      const result = await Promise.race([
+        answerPipeline(utterance, {
+          db,
+          openaiApiKey: c.env.OPENAI_API_KEY,
+          timeoutMs: pipelineTimeoutMs,
+          // KB 미스 시 느린 LLM 동기 호출 안 함 → 즉시 상담연결 (카카오 3초 벽 회피)
+          skipAiGeneration: true,
+        }),
+        new Promise<{ source: "fallback"; answer: string; imageUrl: null; matchedKbId: null; similarityScore: null }>(
+          (resolve) => setTimeout(() => resolve({ source: "fallback", answer: "", imageUrl: null, matchedKbId: null, similarityScore: null }), pipelineTimeoutMs)
+        ),
+      ]);
+
+      if (result.source === "fallback") {
+        // KB 미스(또는 파이프라인 실패) → 즉시 상담연결. 운영자 후속/지식보강 위해 미해결 저장.
+        persist(AGENT_TRANSFER_BOT_TEXT, "fallback", { answered: false });
+        return buildAgentTransferResponse();
+      }
+
+      // ── 인기질문: 답변을 막지 않도록 자체 짧은 타임아웃 (Codex Finding 2) ──
+      const popularQuestions = await Promise.race([
+        getPopularQuestions(db, 5).catch(() => [] as Array<{ question: string }>),
+        new Promise<Array<{ question: string }>>((resolve) =>
+          setTimeout(() => resolve([]), 500)
+        ),
+      ]);
+
+      persist(result.answer, result.source, {
+        answered: true,
+        matchedKbId: result.matchedKbId ?? undefined,
+        similarityScore: result.similarityScore ?? undefined,
+        answeredBy: result.source === "kb_match" ? "KB" : "AI",
+      });
+
+      return buildAnswerResponse(result.answer, result.imageUrl, popularQuestions);
+    } catch (err) {
+      // 어떤 에러(DB 등)든 새지 않게 — 미해결 저장 후 fallback (Codex Finding 1)
+      console.error("kakao /skill runFlow error:", err);
+      persist(FALLBACK_BOT_TEXT, "fallback", { answered: false });
+      return buildFallbackResponse();
+    }
+  };
+
+  // ── 콜백 모드 (카카오 콜백 승인 시 callbackUrl 전달) ──
+  // 즉시 ack 후, 백그라운드로 진짜 답을 만들어 콜백 URL로 POST → 카카오 5초 제한 우회.
+  // callbackUrl이 없으면(미승인) 아래 동기 경로로 폴백 — 배포해도 무해.
+  const callbackUrl = body.userRequest.callbackUrl;
+  if (callbackUrl) {
+    c.executionCtx.waitUntil(
+      (async () => {
+        const pending: Array<Promise<void>> = [];
+        const collectPersist = (
+          botResponse: string,
+          responseSource: ResponseSource,
+          opts: PersistOpts,
+        ) => {
+          pending.push(doPersist(botResponse, responseSource, opts));
+        };
+        // 콜백 URL 유효시간 1분 — 넉넉하지만 안전한 상한
+        const resp = await runFlow(15000, collectPersist);
+        await fetch(callbackUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(resp),
+        }).catch((err) => console.error("Kakao callback POST failed:", err));
+        await Promise.allSettled(pending);
+      })(),
+    );
+
+    return c.json({
+      version: "2.0",
+      useCallback: true,
+      data: { text: "답변을 준비하고 있어요. 잠시만 기다려 주세요 🙏" },
+    });
   }
 
-  // ── 답변 파이프라인 + 인기 질문 병렬 실행 ──
-
-  const [result, popularQuestions] = await Promise.all([
-    answerPipeline(utterance, {
-      db,
-      openaiApiKey: c.env.OPENAI_API_KEY,
+  // ── 동기 모드 (콜백 미승인): 1.8초 글로벌 타임아웃 ──
+  // exact match는 즉시 끝나고, 임베딩 검색은 0.8초까지만 보조로 사용한다.
+  // 늦으면 상담사 연결로 넘기고 야간 학습이 다음 exact match 후보로 흡수한다.
+  // runFlow가 먼저 끝나면 글로벌 타이머 취소 — 정상 응답 경로에 가짜 미해결 기록 방지
+  let globalTimer: ReturnType<typeof setTimeout> | undefined;
+  const response = await Promise.race([
+    runFlow(800, persistInteraction).finally(() => {
+      if (globalTimer) clearTimeout(globalTimer);
     }),
-    getPopularQuestions(db, 5).catch(() => [] as Array<{ question: string }>),
+    new Promise<ReturnType<typeof buildFallbackResponse>>((resolve) => {
+      globalTimer = setTimeout(() => {
+        // 글로벌 타임아웃 — 응답 반환 전에 미해결 저장 등록 (waitUntil 타이밍)
+        persistInteraction(FALLBACK_BOT_TEXT, "fallback", { answered: false });
+        resolve(buildFallbackResponse());
+      }, GLOBAL_TIMEOUT_MS);
+    }),
   ]);
-
-  const response = result.source === "fallback"
-    ? buildFallbackResponse()
-    : buildAnswerResponse(result.answer, result.imageUrl, popularQuestions);
-
-  // ── 비동기 저장 (응답 반환 후 — CF Workers waitUntil) ──
-
-  c.executionCtx.waitUntil(
-    (async () => {
-      try {
-        await createConversation(db, {
-          kakaoUserId,
-          userMessage: utterance,
-          botResponse: result.answer,
-          responseSource: result.source,
-          matchedKbId: result.matchedKbId ?? undefined,
-          similarityScore: result.similarityScore ?? undefined,
-        });
-
-        if (result.matchedKbId) {
-          await incrementUsageCount(db, result.matchedKbId);
-        }
-
-        await createInquiry(
-          db,
-          {
-            channel: "kakao",
-            questionText: utterance,
-            answerText: result.answer,
-            answeredBy: result.source === "kb_match" ? "KB" : "AI",
-          },
-          c.env.OPENAI_API_KEY,
-        );
-      } catch (err) {
-        console.error("Failed to save conversation/inquiry:", err);
-      }
-    })(),
-  );
 
   return c.json(response);
 });
@@ -431,29 +546,44 @@ async function handleOrderIntent(
  *
  * @returns true if the utterance matches a blocked term
  */
+/**
+ * 차단 용어 체크 — KV 캐시 우선, cache miss 시 DB 폴백
+ * KV는 cold start 없어 항상 빠름 (< 1ms)
+ */
 async function checkBlockedTerms(
+  kv: KVNamespace,
   db: Parameters<typeof getCustomerLink>[0],
   utterance: string,
 ): Promise<boolean> {
-  const terms = await db.select().from(blockedTerms);
-  const lowerUtterance = utterance.toLowerCase();
+  type TermRow = { pattern: string; matchType: string };
+  let terms: TermRow[];
 
+  try {
+    const cached = await kv.get("terms", "json") as TermRow[] | null;
+    if (cached) {
+      terms = cached;
+    } else {
+      // cache miss: DB에서 로드 후 KV에 5분 캐시
+      terms = await db.select({ pattern: blockedTerms.pattern, matchType: blockedTerms.matchType }).from(blockedTerms);
+      await kv.put("terms", JSON.stringify(terms), { expirationTtl: 300 });
+    }
+  } catch {
+    return false; // KV/DB 오류 시 fail-open
+  }
+
+  const lowerUtterance = utterance.toLowerCase();
   for (const term of terms) {
-    const pattern = term.pattern;
     switch (term.matchType) {
       case "contains":
-        if (lowerUtterance.includes(pattern.toLowerCase())) return true;
+        if (lowerUtterance.includes(term.pattern.toLowerCase())) return true;
         break;
       case "exact":
-        if (lowerUtterance === pattern.toLowerCase()) return true;
+        if (lowerUtterance === term.pattern.toLowerCase()) return true;
         break;
       case "regex":
         try {
-          if (new RegExp(pattern, "i").test(utterance)) return true;
-        } catch {
-          // invalid regex pattern — skip
-          console.warn(`Invalid blocked term regex: ${pattern}`);
-        }
+          if (new RegExp(term.pattern, "i").test(utterance)) return true;
+        } catch { /* invalid regex — skip */ }
         break;
     }
   }
@@ -461,53 +591,41 @@ async function checkBlockedTerms(
 }
 
 /**
- * 속도 제한 체크
- *
- * conversations 테이블에서 해당 kakaoUserId의 최근 메시지 수를 확인.
+ * 속도 제한 체크 — KV 기반, DB 미사용
  * - 1시간 내 30건 초과 → 차단
  * - 24시간 내 100건 초과 → 차단
- *
- * @returns true if rate limit is exceeded
+ * KV 특성상 eventual consistency (동시 요청 시 약간의 오차 허용)
  */
 async function checkRateLimit(
-  db: Parameters<typeof getCustomerLink>[0],
+  kv: KVNamespace,
   kakaoUserId: string,
 ): Promise<boolean> {
   const now = Date.now();
-  const hourAgo = new Date(now - 60 * 60 * 1000);
-  const dayAgo = new Date(now - 24 * 60 * 60 * 1000);
+  const hourSlot = Math.floor(now / 3_600_000);
+  const daySlot = Math.floor(now / 86_400_000);
+  const hourKey = `rl:h:${kakaoUserId}:${hourSlot}`;
+  const dayKey = `rl:d:${kakaoUserId}:${daySlot}`;
 
-  // 1시간 내 메시지 수
-  const [hourResult] = await db
-    .select({ value: count() })
-    .from(conversations)
-    .where(
-      and(
-        eq(conversations.kakaoUserId, kakaoUserId),
-        gte(conversations.createdAt, hourAgo),
-      ),
-    );
+  try {
+    const [hourStr, dayStr] = await Promise.all([
+      kv.get(hourKey),
+      kv.get(dayKey),
+    ]);
+    const hourCount = parseInt(hourStr ?? "0");
+    const dayCount = parseInt(dayStr ?? "0");
 
-  if (hourResult && hourResult.value >= 30) {
-    return true;
+    if (hourCount >= 30 || dayCount >= 100) return true;
+
+    // 카운트 증가 (응답 기다리지 않음)
+    Promise.all([
+      kv.put(hourKey, String(hourCount + 1), { expirationTtl: 7_200 }),
+      kv.put(dayKey, String(dayCount + 1), { expirationTtl: 172_800 }),
+    ]).catch(() => {});
+
+    return false;
+  } catch {
+    return false; // KV 오류 시 fail-open
   }
-
-  // 24시간 내 메시지 수
-  const [dayResult] = await db
-    .select({ value: count() })
-    .from(conversations)
-    .where(
-      and(
-        eq(conversations.kakaoUserId, kakaoUserId),
-        gte(conversations.createdAt, dayAgo),
-      ),
-    );
-
-  if (dayResult && dayResult.value >= 100) {
-    return true;
-  }
-
-  return false;
 }
 
 /**

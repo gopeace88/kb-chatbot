@@ -43,6 +43,9 @@ blockedTermsRoute.post("/", async (c) => {
     })
     .returning();
 
+  // KV 캐시 무효화 — 다음 요청 시 DB에서 새로 로드
+  c.executionCtx.waitUntil(c.env.BLOCKED_TERMS_CACHE.delete("terms").catch(() => {}));
+
   return c.json(item, 201);
 });
 
@@ -59,6 +62,9 @@ blockedTermsRoute.delete("/:id", async (c) => {
   if (!deleted) {
     return c.json({ error: "Blocked term not found" }, 404);
   }
+
+  // KV 캐시 무효화
+  c.executionCtx.waitUntil(c.env.BLOCKED_TERMS_CACHE.delete("terms").catch(() => {}));
 
   return c.json({ success: true });
 });

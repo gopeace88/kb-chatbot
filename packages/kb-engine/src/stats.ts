@@ -316,6 +316,7 @@ export async function getUnansweredQuestions(
       and(
         eq(conversations.responseSource, "fallback"),
         gte(conversations.createdAt, since),
+        isNull(conversations.resolvedAt),
       ),
     )
     .groupBy(conversations.userMessage)

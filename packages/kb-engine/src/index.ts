@@ -1,11 +1,23 @@
 // Core functions
 export { generateEmbedding, generateEmbeddings, type EmbeddingOptions } from "./embedding.js";
-export { searchKnowledgeBase, type SearchResult } from "./search.js";
+export {
+  findDirectQuestionMatch,
+  searchKnowledgeBase,
+  type SearchResult,
+} from "./search.js";
 export { generateAnswer } from "./answer.js";
 export { refineInquiry, type RefinedQA } from "./refine.js";
 
 // Pipeline
 export { answerPipeline, type AnswerPipelineResult } from "./pipeline.js";
+export {
+  addQuestionVariant,
+  deleteQuestionVariant,
+  generateAndReplaceQuestionVariants,
+  generateQuestionVariants,
+  listQuestionVariants,
+  type QuestionVariant,
+} from "./variants.js";
 
 // CRUD operations
 export {
@@ -39,6 +51,7 @@ export {
   // 미해결 문의
   listUnresolvedConversations,
   resolveConversation,
+  deleteConversation,
   deleteFallbackConversations,
 } from "./crud.js";
 
