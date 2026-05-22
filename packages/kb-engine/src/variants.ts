@@ -124,9 +124,12 @@ export async function generateAndReplaceQuestionVariants(
     },
   );
 
+  // ai_generated만 교체. ai_short(짧은질문 append)·learned_daily(자동학습)는 보존.
+  // source 무관 전체삭제 시 다른 트랙 변형이 날아감 — 절대 금지.
   await executeRows(db, sql`
     DELETE FROM knowledge_question_variants
     WHERE knowledge_item_id = ${knowledgeItemId}
+      AND source = 'ai_generated'
   `);
 
   if (questions.length === 0) return [];
@@ -189,7 +192,9 @@ export async function generateQuestionVariants(
           content: `다음 KB 항목과 같은 답변으로 처리 가능한 고객 질문 표현을 ${count}개 만들어주세요.
 
 규칙:
-- 한국어 고객이 카카오톡에 실제로 짧게 입력할 법한 표현
+- 한국어 고객이 카카오톡에 실제로 입력할 법한 표현
+- 길이를 다양하게: 약 절반은 완결된 문장형, 약 절반은 2~6어절의 짧은 구어체("무게 얼마야?", "방수 돼?", "충전 어떻게 해?" 같은)
+- 단, 단어 1개짜리 키워드는 제외(2어절 이상)
 - 원래 질문과 완전히 같은 문장은 제외
 - 답변에 없는 범위로 질문을 넓히지 말 것
 - 중복/동의어 반복을 피할 것
