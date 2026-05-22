@@ -26,6 +26,7 @@ export const responseSourceEnum = pgEnum("response_source", [
   "kb_match",
   "ai_generated",
   "fallback",
+  "clarify",
 ]);
 
 export const syncTypeEnum = pgEnum("sync_type", ["full", "incremental"]);

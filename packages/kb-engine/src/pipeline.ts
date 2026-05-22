@@ -16,6 +16,7 @@ export interface AnswerPipelineResult {
   similarityScore: number | null;
   imageUrl: string | null;
   kbResults: SearchResult[];
+  clarifyCandidates?: SearchResult[];
 }
 
 interface PipelineConfig {
@@ -78,10 +79,10 @@ export async function answerPipeline(
       });
     }
 
-    // 3. 고유사도 매칭 → KB 답변 직접 반환
+    // 3. 고신뢰 매칭 → KB 답변 직접 반환
     if (
       kbResults.length > 0 &&
-      kbResults[0].similarity >= VECTOR_SEARCH.SIMILARITY_THRESHOLD
+      kbResults[0].similarity >= VECTOR_SEARCH.HIGH_CONFIDENCE_THRESHOLD
     ) {
       return {
         answer: kbResults[0].answer,
@@ -90,6 +91,20 @@ export async function answerPipeline(
         similarityScore: kbResults[0].similarity,
         imageUrl: kbResults[0].imageUrl,
         kbResults,
+      };
+    }
+
+    // 3.3. 애매한 유사도 구간 → 후보 질문으로 명확화
+    const clarifyCandidates = selectClarifyCandidates(kbResults);
+    if (clarifyCandidates.length > 0) {
+      return {
+        answer: CLARIFY_MESSAGE,
+        source: "clarify",
+        matchedKbId: null,
+        similarityScore: kbResults[0].similarity,
+        imageUrl: null,
+        kbResults,
+        clarifyCandidates,
       };
     }
 
@@ -142,6 +157,31 @@ export async function answerPipeline(
   } finally {
     clearTimeout(timeout);
   }
+}
+
+export function selectClarifyCandidates(kbResults: SearchResult[]): SearchResult[] {
+  if (
+    kbResults.length === 0 ||
+    kbResults[0].similarity < VECTOR_SEARCH.SIMILARITY_THRESHOLD ||
+    kbResults[0].similarity >= VECTOR_SEARCH.HIGH_CONFIDENCE_THRESHOLD
+  ) {
+    return [];
+  }
+
+  const seenIds = new Set<string>();
+  const candidates: SearchResult[] = [];
+
+  for (const result of kbResults) {
+    if (result.similarity < VECTOR_SEARCH.SIMILARITY_THRESHOLD) continue;
+    if (seenIds.has(result.id)) continue;
+
+    seenIds.add(result.id);
+    candidates.push(result);
+
+    if (candidates.length === 3) break;
+  }
+
+  return candidates;
 }
 
 /**
@@ -202,3 +242,5 @@ function findImageByTextOverlap(
 
 const FALLBACK_MESSAGE =
   "해당 문의에 대한 답변을 바로 드리기 어렵습니다. 상담원이 확인 후 톡으로 답변드리겠습니다.";
+
+const CLARIFY_MESSAGE = "이 중 궁금하신 게 있나요?";

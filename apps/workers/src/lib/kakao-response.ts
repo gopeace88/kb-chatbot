@@ -93,26 +93,76 @@ export function buildAnswerResponse(
 }
 
 /**
- * 매칭 실패 / 폴백 응답
+ * 애매한 KB 매칭 시 후보 질문 선택 응답
  */
-export function buildFallbackResponse(): KakaoSkillResponse {
+export function buildClarifyResponse(
+  candidates: Array<{ question: string }>,
+): KakaoSkillResponse {
+  const quickReplies: KakaoQuickReply[] = candidates.slice(0, 3).map((candidate) => {
+    const label = candidate.question.length > 14
+      ? candidate.question.slice(0, 13) + "…"
+      : candidate.question;
+
+    return {
+      action: "message",
+      label,
+      messageText: candidate.question,
+    };
+  });
+
+  quickReplies.push({
+    action: "message",
+    label: "상담사 연결",
+    messageText: "상담사 연결",
+  });
+
+  return {
+    version: "2.0",
+    template: {
+      outputs: [simpleText("이 중 궁금하신 게 있나요?")],
+      quickReplies,
+    },
+  };
+}
+
+/**
+ * KB 미스 / 폴백 상담직원 연결 응답
+ *
+ * 카카오 i 오픈빌더 스킬 응답으로는 자동 상담직원 전환 불가.
+ * 오픈빌더 시나리오 빌더에서 이 스킬 블록 다음에 [상담직원 연결]
+ * 액션을 체이닝해야 자동 전환됨.
+ * 참고: https://i.kakao.com/docs/skill-response-format
+ */
+export function buildAutoAgentTransferResponse(): KakaoSkillResponse {
   return {
     version: "2.0",
     template: {
       outputs: [
-        simpleText(
-          "해당 문의에 대한 답변을 바로 드리기 어렵습니다.\n상담원이 확인 후 톡으로 답변드리겠습니다.",
-        ),
-      ],
-      quickReplies: [
         {
-          action: "message",
-          label: "다른 질문하기",
-          messageText: "다른 질문하기",
+          basicCard: {
+            description:
+              "바로 답변드리기 어려운 질문이에요.\n아래 [상담사 연결] 버튼을 눌러 상담사와 연결한 다음, 문의를 다시 보내주시면 답변드립니다.\n(평일 09:00~18:00)",
+            thumbnail: {
+              imageUrl: AGENT_TRANSFER_THUMBNAIL_URL,
+            },
+            buttons: [
+              {
+                action: "operator",
+                label: "상담사 연결",
+              },
+            ],
+          },
         },
       ],
     },
   };
+}
+
+/**
+ * 매칭 실패 / 폴백 응답
+ */
+export function buildFallbackResponse(): KakaoSkillResponse {
+  return buildAutoAgentTransferResponse();
 }
 
 /**
@@ -143,7 +193,7 @@ export function buildAgentTransferResponse(): KakaoSkillResponse {
         {
           basicCard: {
             description:
-              "상담사에게 연결해드리겠습니다.\n운영시간: 평일 09:00~18:00",
+              "상담사 연결을 도와드릴게요.\n아래 [상담사 연결] 버튼을 눌러 상담사와 연결한 다음, 문의를 다시 보내주시면 답변드립니다.\n(평일 09:00~18:00)",
             thumbnail: {
               imageUrl: AGENT_TRANSFER_THUMBNAIL_URL,
             },

@@ -21,6 +21,7 @@ export const RESPONSE_SOURCES = [
   "kb_match",
   "ai_generated",
   "fallback",
+  "clarify",
 ] as const;
 export type ResponseSource = (typeof RESPONSE_SOURCES)[number];
 
@@ -38,6 +39,8 @@ export const DEFAULT_CATEGORIES = [
 export const VECTOR_SEARCH = {
   /** 직접 KB 매칭 임계값 (이 이상이면 KB 답변 직접 반환) */
   SIMILARITY_THRESHOLD: 0.55,
+  /** 자동 답변 고신뢰 임계값 (이 이상이면 KB 답변 직접 반환) */
+  HIGH_CONFIDENCE_THRESHOLD: 0.72,
   /** 검색 컨텍스트 임계값 (이 이상이면 AI 답변 컨텍스트로 활용) */
   CONTEXT_THRESHOLD: 0.1,
   /** 반환할 최대 결과 수 */

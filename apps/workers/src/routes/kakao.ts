@@ -16,7 +16,8 @@ import { blockedTerms } from "@kb-chatbot/database";
 import { kakaoSkillAuth } from "../middleware/kakao-auth.js";
 import {
   buildAnswerResponse,
-  buildFallbackResponse,
+  buildClarifyResponse,
+  buildAutoAgentTransferResponse,
   buildFeedbackThanksResponse,
   buildAgentTransferResponse,
   buildKakaoSyncPromptResponse,
@@ -85,11 +86,9 @@ kakao.post("/skill", async (c) => {
   // 총응답을 ~2.3s 이내로 유지(카카오 실채널 허용 범위, 경험검증).
   const GLOBAL_TIMEOUT_MS = 2300;
 
-  const FALLBACK_BOT_TEXT =
-    "해당 문의에 대한 답변을 바로 드리기 어렵습니다.\n상담원이 확인 후 톡으로 답변드리겠습니다.";
   // KB 미스 → 상담연결 카드를 실제로 보냄. 저장 텍스트도 실제 발송 내용과 일치시킴.
   const AGENT_TRANSFER_BOT_TEXT =
-    "상담사에게 연결해드리겠습니다.\n운영시간: 평일 09:00~18:00";
+    "바로 답변드리기 어려운 질문이에요.\n아래 [상담사 연결] 버튼을 눌러 상담사와 연결한 다음, 문의를 다시 보내주시면 답변드립니다.\n(평일 09:00~18:00)";
 
   type PersistOpts = {
     answered: boolean;
@@ -168,7 +167,7 @@ kakao.post("/skill", async (c) => {
       const intent = detectIntent(utterance);
 
       const phoneResponse = await handlePhoneCollection(db, kakaoUserId, utterance, intent);
-      if (phoneResponse) return phoneResponse as ReturnType<typeof buildFallbackResponse>;
+      if (phoneResponse) return phoneResponse as ReturnType<typeof buildAutoAgentTransferResponse>;
 
       if (intent !== "general") {
         const orderResponse = await handleOrderIntent(c, db, kakaoUserId, utterance);
@@ -189,10 +188,19 @@ kakao.post("/skill", async (c) => {
         ),
       ]);
 
+      if (result.source === "clarify") {
+        const botText = result.answer;
+        persist(botText, "clarify", {
+          answered: false,
+          similarityScore: result.similarityScore ?? undefined,
+        });
+        return buildClarifyResponse(result.clarifyCandidates ?? []);
+      }
+
       if (result.source === "fallback") {
         // KB 미스(또는 파이프라인 실패) → 즉시 상담연결. 운영자 후속/지식보강 위해 미해결 저장.
         persist(AGENT_TRANSFER_BOT_TEXT, "fallback", { answered: false });
-        return buildAgentTransferResponse();
+        return buildAutoAgentTransferResponse();
       }
 
       // ── 인기질문: 답변을 막지 않도록 자체 짧은 타임아웃 (Codex Finding 2) ──
@@ -214,8 +222,8 @@ kakao.post("/skill", async (c) => {
     } catch (err) {
       // 어떤 에러(DB 등)든 새지 않게 — 미해결 저장 후 fallback (Codex Finding 1)
       console.error("kakao /skill runFlow error:", err);
-      persist(FALLBACK_BOT_TEXT, "fallback", { answered: false });
-      return buildFallbackResponse();
+      persist(AGENT_TRANSFER_BOT_TEXT, "fallback", { answered: false });
+      return buildAutoAgentTransferResponse();
     }
   };
 
@@ -261,11 +269,11 @@ kakao.post("/skill", async (c) => {
     runFlow(1800, persistInteraction).finally(() => {
       if (globalTimer) clearTimeout(globalTimer);
     }),
-    new Promise<ReturnType<typeof buildFallbackResponse>>((resolve) => {
+    new Promise<ReturnType<typeof buildAutoAgentTransferResponse>>((resolve) => {
       globalTimer = setTimeout(() => {
         // 글로벌 타임아웃 — 응답 반환 전에 미해결 저장 등록 (waitUntil 타이밍)
-        persistInteraction(FALLBACK_BOT_TEXT, "fallback", { answered: false });
-        resolve(buildFallbackResponse());
+        persistInteraction(AGENT_TRANSFER_BOT_TEXT, "fallback", { answered: false });
+        resolve(buildAutoAgentTransferResponse());
       }, GLOBAL_TIMEOUT_MS);
     }),
   ]);

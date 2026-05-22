@@ -11,6 +11,7 @@ import type {
   Channel,
   InquiryStatus,
   PaginationParams,
+  ResponseSource,
 } from "@kb-chatbot/shared";
 import { generateEmbedding } from "./embedding.js";
 
@@ -427,7 +428,7 @@ export interface CreateConversationInput {
   kakaoUserId: string;
   userMessage: string;
   botResponse: string;
-  responseSource: "kb_match" | "ai_generated" | "fallback";
+  responseSource: ResponseSource;
   matchedKbId?: string;
   similarityScore?: number;
 }
@@ -529,7 +530,7 @@ export async function listConversations(
     kakaoUserId: r.kakao_user_id,
     userMessage: r.user_message,
     botResponse: r.bot_response,
-    responseSource: r.response_source as "kb_match" | "ai_generated" | "fallback",
+    responseSource: r.response_source as ResponseSource,
     matchedKbId: r.matched_kb_id,
     similarityScore: r.similarity_score,
     wasHelpful: r.was_helpful,
@@ -670,7 +671,7 @@ export async function listUnresolvedConversations(
     kakaoUserId: r.kakao_user_id,
     userMessage: r.user_message,
     botResponse: r.bot_response,
-    responseSource: r.response_source as "kb_match" | "ai_generated" | "fallback",
+    responseSource: r.response_source as ResponseSource,
     matchedKbId: r.matched_kb_id,
     similarityScore: r.similarity_score,
     wasHelpful: r.was_helpful,
