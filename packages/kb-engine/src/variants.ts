@@ -124,43 +124,50 @@ export async function generateAndReplaceQuestionVariants(
     },
   );
 
+  // OpenAI 임베딩은 DB 트랜잭션 진입 전에 미리 — 임베딩 실패가 DELETE를 못 건드리게.
+  const embeddings =
+    questions.length > 0
+      ? await generateEmbeddings(questions, openaiApiKey, { baseUrl: options?.baseUrl })
+      : [];
+
   // ai_generated만 교체. ai_short(짧은질문 append)·learned_daily(자동학습)는 보존.
   // source 무관 전체삭제 시 다른 트랙 변형이 날아감 — 절대 금지.
-  await executeRows(db, sql`
-    DELETE FROM knowledge_question_variants
-    WHERE knowledge_item_id = ${knowledgeItemId}
-      AND source = 'ai_generated'
-  `);
+  // DELETE+INSERT를 한 트랜잭션으로 묶어 부분 실패 시 롤백(ai_generated 손실 방지).
+  return (
+    db as unknown as {
+      transaction: <T>(fn: (tx: unknown) => Promise<T>) => Promise<T>;
+    }
+  ).transaction(async (tx) => {
+    await executeRows(tx, sql`
+      DELETE FROM knowledge_question_variants
+      WHERE knowledge_item_id = ${knowledgeItemId}
+        AND source = 'ai_generated'
+    `);
 
-  if (questions.length === 0) return [];
+    if (questions.length === 0) return [];
 
-  const embeddings = await generateEmbeddings(
-    questions,
-    openaiApiKey,
-    { baseUrl: options?.baseUrl },
-  );
+    const values = questions.map((question, index) => {
+      const embeddingStr = `[${embeddings[index].join(",")}]`;
+      return sql`(${knowledgeItemId}, ${question}, ${embeddingStr}::vector, 'ai_generated')`;
+    });
 
-  const values = questions.map((question, index) => {
-    const embeddingStr = `[${embeddings[index].join(",")}]`;
-    return sql`(${knowledgeItemId}, ${question}, ${embeddingStr}::vector, 'ai_generated')`;
+    return executeRows<QuestionVariant>(tx, sql`
+      INSERT INTO knowledge_question_variants (
+        knowledge_item_id,
+        question,
+        question_embedding,
+        source
+      )
+      VALUES ${sql.join(values, sql`, `)}
+      ON CONFLICT (knowledge_item_id, question) DO NOTHING
+      RETURNING
+        id,
+        knowledge_item_id AS "knowledgeItemId",
+        question,
+        source,
+        created_at AS "createdAt"
+    `);
   });
-
-  return executeRows<QuestionVariant>(db, sql`
-    INSERT INTO knowledge_question_variants (
-      knowledge_item_id,
-      question,
-      question_embedding,
-      source
-    )
-    VALUES ${sql.join(values, sql`, `)}
-    ON CONFLICT (knowledge_item_id, question) DO NOTHING
-    RETURNING
-      id,
-      knowledge_item_id AS "knowledgeItemId",
-      question,
-      source,
-      created_at AS "createdAt"
-  `);
 }
 
 export async function generateQuestionVariants(
