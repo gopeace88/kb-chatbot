@@ -153,6 +153,7 @@ export async function generateAndReplaceQuestionVariants(
       source
     )
     VALUES ${sql.join(values, sql`, `)}
+    ON CONFLICT (knowledge_item_id, question) DO NOTHING
     RETURNING
       id,
       knowledge_item_id AS "knowledgeItemId",
