@@ -54,7 +54,8 @@ export default function UnansweredPage() {
   };
 
   const handleSave = async () => {
-    if (!formData.answer.trim()) return;
+    if (!formData.answer.trim() || expandedIdx === null) return;
+    const originalMessage = questions[expandedIdx].userMessage;
     setSaving(true);
     try {
       const newItem = await api.createKB({
@@ -63,6 +64,8 @@ export default function UnansweredPage() {
         category: formData.category || undefined,
       });
       await api.publishKB(newItem.id);
+      await api.generateKBVariants(newItem.id);
+      await api.deleteUnansweredQuestion(originalMessage);
       setQuestions((prev) => prev.filter((_, i) => i !== expandedIdx));
       setExpandedIdx(null);
     } catch (e) {

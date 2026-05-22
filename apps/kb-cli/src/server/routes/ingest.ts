@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { randomUUID } from "node:crypto";
-import { createKBItem } from "@kb-chatbot/kb-engine";
+import { createKBItem, generateAndReplaceQuestionVariants } from "@kb-chatbot/kb-engine";
 import type { Database } from "@kb-chatbot/database";
 import {
   runIngestPipeline,
@@ -528,7 +528,7 @@ export function createIngestRoutes(db: Database, openaiApiKey: string, port: num
           item.imageUrl || candidate.imageUrl,
         );
 
-        await createKBItem(
+        const kbItem = await createKBItem(
           db,
           {
             question: item.question,
@@ -538,6 +538,12 @@ export function createIngestRoutes(db: Database, openaiApiKey: string, port: num
             createdBy: "kb-cli-ingest",
             status: "published",
           },
+          openaiApiKey,
+          { baseUrl: OPENAI_DIRECT_URL },
+        );
+        await generateAndReplaceQuestionVariants(
+          db,
+          kbItem.id,
           openaiApiKey,
           { baseUrl: OPENAI_DIRECT_URL },
         );

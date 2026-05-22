@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { api } from "@/lib/api";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Upload, Loader2 } from "lucide-react";
 import Link from "next/link";
 
 const categories = ["배송", "교환/반품", "사용법", "AS/수리", "결제", "기타"];
@@ -19,6 +19,7 @@ export default function NewKBPage() {
   const [answer, setAnswer] = useState("");
   const [category, setCategory] = useState("");
   const [imageUrl, setImageUrl] = useState("");
+  const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -34,6 +35,7 @@ export default function NewKBPage() {
         category: category || undefined,
         imageUrl: imageUrl || undefined,
       });
+      await api.generateKBVariants(item.id);
       router.push(`/kb/detail?id=${item.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "생성 실패");
@@ -86,13 +88,40 @@ export default function NewKBPage() {
               </Select>
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium">이미지 URL (선택)</label>
-              <Input
-                value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
-                placeholder="https://example.com/product.jpg"
-              />
+              <label className="mb-1 block text-sm font-medium">이미지 (선택)</label>
+              <div className="flex gap-2">
+                <Input
+                  value={imageUrl}
+                  onChange={(e) => setImageUrl(e.target.value)}
+                  placeholder="https://example.com/product.jpg"
+                />
+                <label className="flex cursor-pointer items-center gap-1 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium hover:bg-muted">
+                  {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                  파일
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={uploading}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      setUploading(true);
+                      try {
+                        const url = await api.uploadImage(file);
+                        setImageUrl(url);
+                      } catch (err) {
+                        setError(err instanceof Error ? err.message : "업로드 실패");
+                      } finally {
+                        setUploading(false);
+                        e.target.value = "";
+                      }
+                    }}
+                  />
+                </label>
+              </div>
               {imageUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img src={imageUrl} alt="미리보기" className="mt-2 max-h-40 rounded border" />
               )}
             </div>

@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   Plus,
   User,
+  Trash2,
 } from "lucide-react";
 
 export default function UnresolvedPage() {
@@ -25,6 +26,7 @@ export default function UnresolvedPage() {
   const [agentResponse, setAgentResponse] = useState("");
   const [saving, setSaving] = useState(false);
   const [alsoCreateKB, setAlsoCreateKB] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -52,6 +54,22 @@ export default function UnresolvedPage() {
     setAlsoCreateKB(false);
   };
 
+  const handleDelete = async (id: string) => {
+    if (!confirm("이 문의를 삭제하시겠습니까?")) return;
+    setDeletingId(id);
+    try {
+      await api.deleteConversation(id);
+      setData((prev) =>
+        prev ? { ...prev, data: prev.data.filter((c) => c.id !== id), total: prev.total - 1 } : null,
+      );
+      if (expandedId === id) setExpandedId(null);
+    } catch {
+      alert("삭제에 실패했습니다.");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   const handleResolve = async (conv: Conversation) => {
     if (!agentResponse.trim()) return;
     setSaving(true);
@@ -64,6 +82,7 @@ export default function UnresolvedPage() {
           answer: agentResponse,
         });
         await api.publishKB(newItem.id);
+        await api.generateKBVariants(newItem.id);
       }
 
       setData((prev) =>
@@ -170,26 +189,40 @@ export default function UnresolvedPage() {
                         </span>
                       </div>
                     </div>
-                    <button
-                      onClick={() => handleExpand(conv.id)}
-                      className={`ml-4 flex items-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                        expandedId === conv.id
-                          ? "bg-gray-100 text-gray-700"
-                          : "bg-primary text-white hover:bg-primary/90"
-                      }`}
-                    >
-                      {expandedId === conv.id ? (
-                        <>
-                          <X className="h-4 w-4" />
-                          취소
-                        </>
-                      ) : (
-                        <>
-                          <Send className="h-4 w-4" />
-                          답변하기
-                        </>
-                      )}
-                    </button>
+                    <div className="ml-4 flex items-center gap-2">
+                      <button
+                        onClick={() => handleExpand(conv.id)}
+                        className={`flex items-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                          expandedId === conv.id
+                            ? "bg-gray-100 text-gray-700"
+                            : "bg-primary text-white hover:bg-primary/90"
+                        }`}
+                      >
+                        {expandedId === conv.id ? (
+                          <>
+                            <X className="h-4 w-4" />
+                            취소
+                          </>
+                        ) : (
+                          <>
+                            <Send className="h-4 w-4" />
+                            답변하기
+                          </>
+                        )}
+                      </button>
+                      <button
+                        onClick={() => handleDelete(conv.id)}
+                        disabled={deletingId === conv.id}
+                        className="rounded p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-500 disabled:opacity-50"
+                        title="삭제"
+                      >
+                        {deletingId === conv.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
+                      </button>
+                    </div>
                   </div>
 
                   {expandedId === conv.id && (

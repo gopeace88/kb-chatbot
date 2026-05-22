@@ -4,6 +4,8 @@ import { improveCommand } from "./commands/improve.js";
 import { dedupeCommand } from "./commands/dedupe.js";
 import { listCommand } from "./commands/list.js";
 import { serveCommand } from "./commands/serve.js";
+import { variantsCommand } from "./commands/variants.js";
+import { variantsLearnCommand } from "./commands/variants-learn.js";
 
 const program = new Command();
 
@@ -33,6 +35,26 @@ program
   .option("--threshold <number>", "유사도 임계값 (기본: 0.9)")
   .option("--auto", "확인 없이 자동 병합")
   .action(dedupeCommand);
+
+program
+  .command("variants")
+  .description("published KB의 검색용 유사질문을 생성합니다")
+  .option("--all", "기존 유사질문을 다시 생성")
+  .option("--id <uuid>", "특정 KB 항목만 생성")
+  .option("--limit <number>", "처리할 최대 KB 수 (기본: 200)")
+  .option("--count <number>", "KB당 생성할 유사질문 수 (기본: 8)")
+  .option("--dry-run", "생성 결과만 보고 저장하지 않음")
+  .action(variantsCommand);
+
+program
+  .command("variants:learn")
+  .description("최근 대화에서 기존 KB에 붙일 수 있는 검색용 유사질문을 학습합니다")
+  .option("--days <number>", "분석할 최근 일수 (기본: 1)")
+  .option("--limit <number>", "처리할 최대 질문 수 (기본: 50)")
+  .option("--min-similarity <number>", "KB 후보 최소 유사도 (기본: 0.45)")
+  .option("--max-similarity <number>", "학습 후보로 볼 기존 매칭 최대 유사도 (기본: 0.85)")
+  .option("--apply", "승인된 유사질문을 DB에 저장")
+  .action(variantsLearnCommand);
 
 program
   .command("list")

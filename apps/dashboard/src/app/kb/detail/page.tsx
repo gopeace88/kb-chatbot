@@ -9,9 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
-import { api, type KBItem } from "@/lib/api";
+import { api, type KBItem, type QuestionVariant } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
-import { ArrowLeft, Check, Archive, Pencil, X } from "lucide-react";
+import { ArrowLeft, Check, Archive, Pencil, X, Upload, Loader2, Plus, RefreshCw, Trash2 } from "lucide-react";
 
 const categories = ["배송", "교환/반품", "사용법", "AS/수리", "결제", "기타"];
 const statusBadge = {
@@ -38,9 +38,14 @@ function KBDetailContent() {
   const [answer, setAnswer] = useState("");
   const [category, setCategory] = useState("");
   const [imageUrl, setImageUrl] = useState("");
+  const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [variants, setVariants] = useState<QuestionVariant[]>([]);
+  const [variantInput, setVariantInput] = useState("");
+  const [variantsLoading, setVariantsLoading] = useState(false);
+  const [generatingVariants, setGeneratingVariants] = useState(false);
 
   useEffect(() => {
     if (!id) { router.push("/kb"); return; }
@@ -51,7 +56,21 @@ function KBDetailContent() {
       setCategory(data.category || "");
       setImageUrl(data.imageUrl || "");
     }).catch(() => router.push("/kb"));
+    fetchVariants(id);
   }, [id, router]);
+
+  async function fetchVariants(kbId = id) {
+    if (!kbId) return;
+    setVariantsLoading(true);
+    try {
+      const res = await api.listKBVariants(kbId);
+      setVariants(res.data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "유사질문 조회 실패");
+    } finally {
+      setVariantsLoading(false);
+    }
+  }
 
   async function handleSave() {
     setLoading(true);
@@ -69,6 +88,42 @@ function KBDetailContent() {
       setError(err instanceof Error ? err.message : "수정 실패");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleGenerateVariants() {
+    setGeneratingVariants(true);
+    setError("");
+    try {
+      const res = await api.generateKBVariants(id);
+      setVariants(res.data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "유사질문 생성 실패");
+    } finally {
+      setGeneratingVariants(false);
+    }
+  }
+
+  async function handleAddVariant() {
+    const text = variantInput.trim();
+    if (!text) return;
+    setError("");
+    try {
+      const created = await api.addKBVariant(id, text);
+      if (created) setVariants((prev) => [...prev, created]);
+      setVariantInput("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "유사질문 추가 실패");
+    }
+  }
+
+  async function handleDeleteVariant(variantId: string) {
+    if (!confirm("이 유사질문을 삭제하시겠습니까?")) return;
+    try {
+      await api.deleteKBVariant(id, variantId);
+      setVariants((prev) => prev.filter((v) => v.id !== variantId));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "유사질문 삭제 실패");
     }
   }
 
@@ -177,12 +232,38 @@ function KBDetailContent() {
                   </Select>
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium">이미지 URL</label>
-                  <Input
-                    value={imageUrl}
-                    onChange={(e) => setImageUrl(e.target.value)}
-                    placeholder="https://example.com/product.jpg"
-                  />
+                  <label className="mb-1 block text-sm font-medium">이미지</label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={imageUrl}
+                      onChange={(e) => setImageUrl(e.target.value)}
+                      placeholder="https://example.com/product.jpg"
+                    />
+                    <label className="flex cursor-pointer items-center gap-1 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium hover:bg-muted">
+                      {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                      파일
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        disabled={uploading}
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          setUploading(true);
+                          try {
+                            const url = await api.uploadImage(file);
+                            setImageUrl(url);
+                          } catch (err) {
+                            setError(err instanceof Error ? err.message : "업로드 실패");
+                          } finally {
+                            setUploading(false);
+                            e.target.value = "";
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
                   {imageUrl && (
                     <button
                       type="button"
@@ -270,6 +351,86 @@ function KBDetailContent() {
           </CardContent>
         </Card>
       </div>
+
+      <Card className="mt-4">
+        <CardHeader>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <CardTitle>검색용 유사질문</CardTitle>
+              <p className="mt-1 text-sm text-muted-foreground">
+                고객이 다르게 물어봐도 이 Q&A 답변으로 매칭되도록 쓰는 질문들입니다.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleGenerateVariants}
+              disabled={generatingVariants}
+            >
+              {generatingVariants ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              재생성
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex gap-2">
+            <Input
+              value={variantInput}
+              onChange={(e) => setVariantInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleAddVariant();
+                }
+              }}
+              placeholder="예: 이거 몇 그램이에요?"
+            />
+            <Button onClick={handleAddVariant} disabled={!variantInput.trim()}>
+              <Plus className="h-4 w-4" />
+              추가
+            </Button>
+          </div>
+
+          {variantsLoading ? (
+            <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              유사질문을 불러오는 중...
+            </div>
+          ) : variants.length === 0 ? (
+            <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
+              아직 등록된 유사질문이 없습니다. 재생성을 누르거나 직접 추가하세요.
+            </div>
+          ) : (
+            <div className="grid gap-2 md:grid-cols-2">
+              {variants.map((variant) => (
+                <div
+                  key={variant.id}
+                  className="flex items-start justify-between gap-2 rounded-md border border-border px-3 py-2"
+                >
+                  <div>
+                    <p className="text-sm text-gray-900">{variant.question}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {variant.source === "ai_generated" ? "AI 생성" : "수동 추가"}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteVariant(variant.id)}
+                    className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-500"
+                    title="삭제"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -76,7 +76,8 @@ function InquiryDetailContent() {
     setLoading("publish");
     setError("");
     try {
-      await api.publishInquiry(id);
+      const kbItem = await api.publishInquiry(id);
+      await api.generateKBVariants(kbItem.id);
       const updated = await api.getInquiry(id);
       setItem(updated);
     } catch (err) {

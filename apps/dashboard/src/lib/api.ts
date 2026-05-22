@@ -68,6 +68,14 @@ export interface KBItem {
   imageUrl: string | null;
 }
 
+export interface QuestionVariant {
+  id: string;
+  knowledgeItemId: string;
+  question: string;
+  source: "manual" | "ai_generated" | string;
+  createdAt: string;
+}
+
 export interface Inquiry {
   id: string;
   channel: "kakao" | "coupang" | "naver" | "cafe24" | "manual";
@@ -198,6 +206,22 @@ export interface UnansweredQuestion {
   userMessage: string;
   count: number;
   lastAsked: string;
+}
+
+export interface VariantLearningLog {
+  id: string;
+  userMessage: string;
+  knowledgeItemId: string | null;
+  knowledgeQuestionVariantId: string | null;
+  decision: "inserted" | "rejected" | "skipped" | "removed" | string;
+  suggestedQuestion: string | null;
+  reason: string | null;
+  similarity: number | null;
+  sourceCount: number;
+  lastAskedAt: string | null;
+  createdAt: string;
+  kbQuestion: string | null;
+  variantQuestion: string | null;
 }
 
 // ── Monitoring 타입 ──
@@ -331,6 +355,21 @@ export const api = {
     apiClient<KBItem>(`/api/kb/${id}/publish`, { method: "POST" }),
   archiveKB: (id: string) =>
     apiClient<KBItem>(`/api/kb/${id}/archive`, { method: "POST" }),
+  listKBVariants: (id: string) =>
+    apiClient<{ data: QuestionVariant[] }>(`/api/kb/${id}/variants`),
+  addKBVariant: (id: string, question: string) =>
+    apiClient<QuestionVariant>(`/api/kb/${id}/variants`, {
+      method: "POST",
+      body: JSON.stringify({ question }),
+    }),
+  generateKBVariants: (id: string) =>
+    apiClient<{ data: QuestionVariant[] }>(`/api/kb/${id}/variants/generate`, {
+      method: "POST",
+    }),
+  deleteKBVariant: (id: string, variantId: string) =>
+    apiClient<{ success: boolean }>(`/api/kb/${id}/variants/${variantId}`, {
+      method: "DELETE",
+    }),
 
   // Inquiries
   listInquiries: (params?: { page?: number; channel?: string; status?: string }) => {
@@ -376,6 +415,8 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ agentResponse }),
     }),
+  deleteConversation: (id: string) =>
+    apiClient<{ success: boolean }>(`/api/conversations/${id}`, { method: "DELETE" }),
 
   // Collector
   syncCoupang: (syncType?: "full" | "incremental") =>
@@ -432,6 +473,22 @@ export const api = {
       body: JSON.stringify({ userMessage }),
     }),
 
+  // Variant learning logs
+  listVariantLearningLogs: (params?: { page?: number; decision?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.page) qs.set("page", String(params.page));
+    if (params?.decision && params.decision !== "all") qs.set("decision", params.decision);
+    return apiClient<PaginatedResponse<VariantLearningLog>>(`/api/variant-learning/logs?${qs}`);
+  },
+  deleteVariantLearningLog: (id: string) =>
+    apiClient<{ success: boolean }>(`/api/variant-learning/logs/${id}`, {
+      method: "DELETE",
+    }),
+  deleteLearnedVariantFromLog: (id: string) =>
+    apiClient<{ success: boolean }>(`/api/variant-learning/logs/${id}/variant`, {
+      method: "DELETE",
+    }),
+
   // Blocked Terms
   listBlockedTerms: () =>
     apiClient<{ data: BlockedTerm[] }>("/api/blocked-terms"),
@@ -439,6 +496,24 @@ export const api = {
     apiClient<BlockedTerm>("/api/blocked-terms", { method: "POST", body: JSON.stringify(data) }),
   deleteBlockedTerm: (id: string) =>
     apiClient<{ success: boolean }>(`/api/blocked-terms/${id}`, { method: "DELETE" }),
+
+  // Upload
+  uploadImage: async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const headers: Record<string, string> = {};
+    if (isDev) {
+      headers["Cf-Access-Jwt-Assertion"] = "dev";
+      headers["cf-access-authenticated-user-email"] = "dev@localhost";
+    }
+    const res = await fetch(`${API_BASE}/api/upload`, { method: "POST", body: formData, headers });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error((err as { error?: string }).error || `Upload error: ${res.status}`);
+    }
+    const data = (await res.json()) as { url: string };
+    return data.url;
+  },
 
   // Monitoring
   getMonitoringNeon: (days = 7) =>
