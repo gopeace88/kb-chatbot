@@ -121,7 +121,7 @@ SSHPASS='Go123Peac!!' sshpass -e ssh jhkim@192.192.192.145 'cat > /volume1/Work/
 
 Run:
 ```bash
-SSHPASS='Go123Peac!!' sshpass -e ssh jhkim@192.192.192.145 'cd /volume1/Work/kb-chatbot && sudo docker compose --env-file .env up -d postgres'
+SSHPASS='Go123Peac!!' sshpass -e ssh jhkim@192.192.192.145 'cd /volume1/Work/kb-chatbot && /usr/local/bin/docker compose --env-file .env up -d postgres'
 ```
 Expected: `postgres` 컨테이너 생성·기동. (compose 파일에 아직 app/cloudflared 없어도 `up -d postgres`는 정상 — 서비스는 Task 4/8에서 추가 후 재전송.)
 
@@ -129,7 +129,7 @@ Expected: `postgres` 컨테이너 생성·기동. (compose 파일에 아직 app/
 
 Run:
 ```bash
-SSHPASS='Go123Peac!!' sshpass -e ssh jhkim@192.192.192.145 'cd /volume1/Work/kb-chatbot && sudo docker compose exec -T postgres psql -U kbchatbot -d kbchatbot -c "CREATE EXTENSION IF NOT EXISTS vector; SELECT extversion FROM pg_extension WHERE extname=\$\$vector\$\$;"'
+SSHPASS='Go123Peac!!' sshpass -e ssh jhkim@192.192.192.145 'cd /volume1/Work/kb-chatbot && /usr/local/bin/docker compose exec -T postgres psql -U kbchatbot -d kbchatbot -c "CREATE EXTENSION IF NOT EXISTS vector; SELECT extversion FROM pg_extension WHERE extname=\$\$vector\$\$;"'
 ```
 Expected: vector 확장 버전 1행 출력.
 
@@ -143,7 +143,7 @@ Expected: vector 확장 버전 1행 출력.
 
 Run:
 ```bash
-SSHPASS='Go123Peac!!' sshpass -e ssh jhkim@192.192.192.145 'cd /volume1/Work/kb-chatbot && sudo docker compose cp backups/neon-20260518-1857.dump postgres:/tmp/neon.dump && sudo docker compose exec -T postgres pg_restore -U kbchatbot -d kbchatbot --no-owner --no-privileges /tmp/neon.dump'
+SSHPASS='Go123Peac!!' sshpass -e ssh jhkim@192.192.192.145 'cd /volume1/Work/kb-chatbot && /usr/local/bin/docker compose cp backups/neon-20260518-1857.dump postgres:/tmp/neon.dump && /usr/local/bin/docker compose exec -T postgres pg_restore -U kbchatbot -d kbchatbot --no-owner --no-privileges /tmp/neon.dump'
 ```
 Expected: 에러 없이 완료(권한/소유자 경고는 무시 가능 — `--no-owner`).
 
@@ -151,7 +151,7 @@ Expected: 에러 없이 완료(권한/소유자 경고는 무시 가능 — `--n
 
 Run:
 ```bash
-SSHPASS='Go123Peac!!' sshpass -e ssh jhkim@192.192.192.145 'cd /volume1/Work/kb-chatbot && sudo docker compose exec -T postgres psql -U kbchatbot -d kbchatbot -c "SELECT count(*) FROM knowledge_items; SELECT count(*) FROM conversations; SELECT count(*) FROM raw_inquiries;"'
+SSHPASS='Go123Peac!!' sshpass -e ssh jhkim@192.192.192.145 'cd /volume1/Work/kb-chatbot && /usr/local/bin/docker compose exec -T postgres psql -U kbchatbot -d kbchatbot -c "SELECT count(*) FROM knowledge_items; SELECT count(*) FROM conversations; SELECT count(*) FROM raw_inquiries;"'
 ```
 Expected: `knowledge_items` = 48 (Neon 원본과 동일). 불일치 시 중단·조사.
 
@@ -162,7 +162,7 @@ Run (로컬 → NAS로 SQL 2개 전송 후 컨테이너에 복사·적용):
 for m in 0001_knowledge_question_variants 0002_variant_learning_logs; do
   SSHPASS='Go123Peac!!' sshpass -e ssh jhkim@192.192.192.145 "cat > /volume1/Work/kb-chatbot/backups/$m.sql" < "packages/database/drizzle/$m.sql"
 done
-SSHPASS='Go123Peac!!' sshpass -e ssh jhkim@192.192.192.145 'cd /volume1/Work/kb-chatbot && for m in 0001_knowledge_question_variants 0002_variant_learning_logs; do sudo docker compose cp backups/$m.sql postgres:/tmp/$m.sql && sudo docker compose exec -T postgres psql -U kbchatbot -d kbchatbot -v ON_ERROR_STOP=1 -f /tmp/$m.sql; done'
+SSHPASS='Go123Peac!!' sshpass -e ssh jhkim@192.192.192.145 'cd /volume1/Work/kb-chatbot && for m in 0001_knowledge_question_variants 0002_variant_learning_logs; do /usr/local/bin/docker compose cp backups/$m.sql postgres:/tmp/$m.sql && /usr/local/bin/docker compose exec -T postgres psql -U kbchatbot -d kbchatbot -v ON_ERROR_STOP=1 -f /tmp/$m.sql; done'
 ```
 Expected: 두 SQL 에러 없이 적용(`CREATE TABLE` 등). 이미 존재 시 에러면 해당 테이블 선확인 후 스킵 판단.
 
@@ -170,7 +170,7 @@ Expected: 두 SQL 에러 없이 적용(`CREATE TABLE` 등). 이미 존재 시 �
 
 Run:
 ```bash
-SSHPASS='Go123Peac!!' sshpass -e ssh jhkim@192.192.192.145 'cd /volume1/Work/kb-chatbot && sudo docker compose exec -T postgres psql -U kbchatbot -d kbchatbot -c "SELECT to_regclass(\$\$public.knowledge_question_variants\$\$), to_regclass(\$\$public.variant_learning_logs\$\$);"'
+SSHPASS='Go123Peac!!' sshpass -e ssh jhkim@192.192.192.145 'cd /volume1/Work/kb-chatbot && /usr/local/bin/docker compose exec -T postgres psql -U kbchatbot -d kbchatbot -c "SELECT to_regclass(\$\$public.knowledge_question_variants\$\$), to_regclass(\$\$public.variant_learning_logs\$\$);"'
 ```
 Expected: 두 테이블 모두 non-null(존재).
 
@@ -230,7 +230,7 @@ tar --exclude node_modules --exclude .git --exclude apps/dashboard/out -czf - -C
 
 Run:
 ```bash
-SSHPASS='Go123Peac!!' sshpass -e ssh jhkim@192.192.192.145 'cd /volume1/Work/kb-chatbot && sudo docker compose --env-file .env up -d --build app'
+SSHPASS='Go123Peac!!' sshpass -e ssh jhkim@192.192.192.145 'cd /volume1/Work/kb-chatbot && /usr/local/bin/docker compose --env-file .env up -d --build app'
 ```
 Expected: app 컨테이너 빌드 성공, 기동.
 
@@ -238,7 +238,7 @@ Expected: app 컨테이너 빌드 성공, 기동.
 
 Run:
 ```bash
-SSHPASS='Go123Peac!!' sshpass -e ssh jhkim@192.192.192.145 'cd /volume1/Work/kb-chatbot && sudo docker compose exec -T app sh -c "wget -qO- http://127.0.0.1:3458/health"'
+SSHPASS='Go123Peac!!' sshpass -e ssh jhkim@192.192.192.145 'cd /volume1/Work/kb-chatbot && /usr/local/bin/docker compose exec -T app sh -c "wget -qO- http://127.0.0.1:3458/health"'
 ```
 Expected: `{"status":"ok",...}`.
 
@@ -379,7 +379,7 @@ git commit -m "feat(local): real R2 image upload via S3 API in local/NAS mode"
 
 Run:
 ```bash
-SSHPASS='Go123Peac!!' sshpass -e ssh jhkim@192.192.192.145 'cd /volume1/Work/kb-chatbot && sudo docker compose exec -T app sh -c "wget -qO- --server-response http://127.0.0.1:3458/api/kb 2>&1 | head -1"'
+SSHPASS='Go123Peac!!' sshpass -e ssh jhkim@192.192.192.145 'cd /volume1/Work/kb-chatbot && /usr/local/bin/docker compose exec -T app sh -c "wget -qO- --server-response http://127.0.0.1:3458/api/kb 2>&1 | head -1"'
 ```
 Expected: 인증 미설정 시 401/403 (보호됨). 200이면 보안 조치 필요.
 
@@ -412,7 +412,7 @@ Cloudflare 대시보드에서 Public Hostname `kb-api.runvision.ai` → `http://
 
 Run:
 ```bash
-SSHPASS='Go123Peac!!' sshpass -e ssh jhkim@192.192.192.145 'cd /volume1/Work/kb-chatbot && sudo docker compose --env-file .env up -d cloudflared && sudo docker compose logs --tail=20 cloudflared'
+SSHPASS='Go123Peac!!' sshpass -e ssh jhkim@192.192.192.145 'cd /volume1/Work/kb-chatbot && /usr/local/bin/docker compose --env-file .env up -d cloudflared && /usr/local/bin/docker compose logs --tail=20 cloudflared'
 ```
 Expected: 로그에 `Registered tunnel connection` 표시.
 
@@ -442,7 +442,7 @@ Expected: health ok, db-ping `{"ok":true,"ms":<작은값>}` (NAS 로컬 PG라 �
 
 NAS 앱 로그 확인:
 ```bash
-SSHPASS='Go123Peac!!' sshpass -e ssh jhkim@192.192.192.145 'cd /volume1/Work/kb-chatbot && sudo docker compose logs --tail=40 app | grep -E "DIAG|POST /kakao"'
+SSHPASS='Go123Peac!!' sshpass -e ssh jhkim@192.192.192.145 'cd /volume1/Work/kb-chatbot && /usr/local/bin/docker compose logs --tail=40 app | grep -E "DIAG|POST /kakao"'
 ```
 Expected: `branch=answered source=kb_match` 빠른 ms, 무응답 없음.
 
@@ -450,7 +450,7 @@ Expected: `branch=answered source=kb_match` 빠른 ms, 무응답 없음.
 
 Run (NAS app 컨테이너에서 운영자 엔드포인트 호출 또는 스크립트):
 ```bash
-SSHPASS='Go123Peac!!' sshpass -e ssh jhkim@192.192.192.145 'cd /volume1/Work/kb-chatbot && sudo docker compose exec -T postgres psql -U kbchatbot -d kbchatbot -c "SELECT count(*) FROM knowledge_question_variants;"'
+SSHPASS='Go123Peac!!' sshpass -e ssh jhkim@192.192.192.145 'cd /volume1/Work/kb-chatbot && /usr/local/bin/docker compose exec -T postgres psql -U kbchatbot -d kbchatbot -c "SELECT count(*) FROM knowledge_question_variants;"'
 ```
 변형 0개면 published 항목별 `generateAndReplaceQuestionVariants`를 일괄 호출(kb.ts:71 엔드포인트 또는 일회성 스크립트). 검증: 변형수 > 0, "무게는?" 유사도 ≥ 0.8.
 
